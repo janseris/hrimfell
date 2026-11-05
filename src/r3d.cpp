@@ -1746,7 +1746,7 @@ void R3D::RasterFlat(TV* v0, TV* v1, TV* v2)
     int dw = MulHi30((v1->w - along) << 12, rw);
     iTris++;
 #ifdef R3D_STATS
-    { extern int g_triId; g_triId++; }
+    { extern int g_triId, g_triOcc, g_triOccN; g_triId++; g_triOcc = iOccOn; g_triOccN += iOccOn; }
 #endif
     hs.dws = dw >> 8; hs.dw = dw;
     hs.x.col = iFlatCol;
@@ -1809,7 +1809,7 @@ void R3D::RasterTex(TV* v0, TV* v1, TV* v2)
             {
             iTris++;
 #ifdef R3D_STATS
-    { extern int g_triId; g_triId++; }
+    { extern int g_triId, g_triOcc, g_triOccN; g_triId++; g_triOcc = iOccOn; g_triOccN += iOccOn; }
 #endif
             if (T.pa0 < T.pb0) RunBand(K_TEX, T.persp, T.hs[0], T.pa0, T.wmax);
             if (T.pa1 < T.pb1) RunBand(K_TEX, T.persp, T.hs[1], T.pa1, T.wmax);
@@ -1855,7 +1855,7 @@ void R3D::RasterTex(TV* v0, TV* v1, TV* v2)
     }
     iTris++;
 #ifdef R3D_STATS
-    { extern int g_triId; g_triId++; }
+    { extern int g_triId, g_triOcc, g_triOccN; g_triId++; g_triOcc = iOccOn; g_triOccN += iOccOn; }
 #endif
     hs.W = iW; hs.xlo = 0; hs.xhi = iW;
     hs.cstride = iCStride * 2;
@@ -1965,7 +1965,7 @@ void R3D::Raster(TV* v0, TV* v1, TV* v2, int aKind)
         }
     iTris++;
 #ifdef R3D_STATS
-    { extern int g_triId; g_triId++; }
+    { extern int g_triId, g_triOcc, g_triOccN; g_triId++; g_triOcc = iOccOn; g_triOccN += iOccOn; }
 #endif
     Edge L1, L2, R1, R2;
     Edge* L[2]; Edge* R[2];
@@ -2181,7 +2181,7 @@ void R3D::RunHalfPersp(HalfState& h)
     }
 
 #ifdef R3D_STATS
-#define R3D_VIS { extern int g_triId, g_triVisMark, g_triVis; if (g_triVisMark != g_triId) { g_triVisMark = g_triId; g_triVis++; } }
+#define R3D_VIS { extern int g_triId, g_triVisMark, g_triVis, g_triOcc, g_triVisOcc; if (g_triVisMark != g_triId) { g_triVisMark = g_triId; g_triVis++; g_triVisOcc += g_triOcc; } }
 #else
 #define R3D_VIS
 #endif
@@ -3475,7 +3475,7 @@ void R3D::MeshRings(Mesh& m, int aFrame, const int* R, int aRings, int aSides, i
 // (host builds: what each model puts on the screen - triangles drawn, pixels, times drawn)
 int g_arenaOver1, g_arenaFree1; int g_clTot;
 #ifdef R3D_STATS
-int g_triId, g_triVisMark = -1, g_triVis;     // (v0.4.75) triangles set up, and those with a pixel that showed
+int g_triId, g_triVisMark = -1, g_triVis, g_triOcc, g_triOccN, g_triVisOcc;     // (v0.4.75) triangles set up, and those with a pixel that showed
 #endif
  R3DStat g_r3dStat[256]; int g_r3dPixFlat; int g_r3dStage[12]; int g_r3dRows[3]; int g_r3dStatN;
 static R3DStat* StatOf(const Mesh* m)

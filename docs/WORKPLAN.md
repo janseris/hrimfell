@@ -467,3 +467,20 @@ licence. Planned (user's idea): an in-game menu choosing places, the PC's local 
 own Skyrim (exporter + generators + lib_pack + pvs) and the phone downloading the area files (as the DLL updates do) -
 the .sis then ships no Skyrim data; the base files (library, items, land) the first download. Then the coverage-bit
 rasteriser.
+Nov 5 23:25: pushed to https://github.com/janseris/hrimfell (private; the Claude GitHub app on that one repository) -
+one commit 45448ed: the engine, tools, docs, LICENSE (PolyForm Noncommercial 1.0.0, Required Notice: janseris), LEGAL.md,
+README.md; no game data (.gitignore), the people's lines in src/game_lines.inc (ignored; game_lines_stub.inc tracked).
+Work in /home/claude/game, push from there (origin = janseris/hrimfell, branch main). NEXT (user 23:28 "do it"): the
+coverage rework - reject wholly hidden triangles before their set-up (market 53 %, city 48 %, Stronghold 37 % of the
+triangles set up show nothing).
+Nov 5 23:45 - the hidden triangles, measured (host/scenestats, R3D_STATS: set up before the occlusion map exists /
+after): market 899 / 623 of 1522, city at 250 m 896 / 805, Stronghold 47 / 594, stables 618 / 182. Tried: an exact
+depth test of a small triangle's box before its set-up (ZHiddenTri: the middle pixel first, boxes up to 64-1024 px) -
+it left out 900 of the market's 2847 triangles but cost 353 instructions a call in C against a hidden triangle's set-up
+of ~240-370 (they are small, mostly flat, the set-up already ARM): every scene slower (+2-4 %), the cache model no
+better. Removed. Why Maps 9300 gained and we do not: it has no depth buffer - a bit a pixel, 32 pixels a word compare,
+triangles strictly nearest first (bucketed) - so its test is ~16x cheaper and its spans skip hidden runs whole. The real
+prize here would be the hidden PIXELS (overdraw ~2.5, ~7 instructions each, and the depth write of every shown pixel),
+which only that whole design removes: all of a frame's triangles bucketed by depth before any is drawn, coverage bits
+in place of the depth test in every span loop (ARM), the later passes (props, people, the view model) in the same
+buckets. A big rewrite - asked the user before starting.
