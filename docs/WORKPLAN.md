@@ -525,3 +525,8 @@ scratch is r8, so the state pointer r0 is no longer pushed and popped each row. 
 from it): all scenes 269.8 -> 268.1 M (-0.6 %, -1.0..-1.4 % in the textured interiors and caves), the same pixels.
 Since v0.4.75: 274.4 -> 268.1 M (-2.3 %). Left: the perspective rows (persp_rows*) the same way; the row's own
 ~50 instructions are now mostly its edges, its start values (3 mla) and the state's updates.
+Nov 6 00:50 v0.4.80: the perspective rows (persp_rows1/q1/h1: PERSPROWS's non-cutout segments) packed as half_tex1:
+the two texel coordinates in one register from each segment's exact start (16 - ls whole, ls fraction bits:
+PRPIX), the colour store off the depth pointer, two pixels a turn. All scenes 268.1 -> 265.5 M (-1.0 %; the Hall of
+the Dead -4.2 %, the catacombs -4.4 %, the trader -2.6 %); single texels a pixel over inside textures. The cutout
+segments (key: leaves, webs) keep their conditional loop. Since v0.4.75: 274.4 -> 265.5 M (-3.2 %).

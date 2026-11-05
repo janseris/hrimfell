@@ -3155,6 +3155,24 @@ face_shade:
 @ its span clipped to [xlo, xhi), u, v recovered at its first pixel from u*w, v*w and w, the runs' length from how fast
 @ w changes along it (PERSP_LIM 2, PERSP_SEG 32), then the runs as persp_tex* draws them; the state left as the C leaves
 @ it (the edges, w, u*w, v*w down the left edge stepped on; c: rc set by the caller, the rest scratch)
+@ (v0.4.79) one pixel of a perspective segment, packed as half_tex1's: ls the fraction bits (10, 9, 8 for 64, 128, 256)
+	.macro	PRPIX n, ls
+	ldrh	r12, [r2], #2
+	cmp	r12, r3, asr #8
+	bge	8\n\()f
+	mov	lr, r3, asr #8
+	strh	lr, [r2, #-2]
+	mov	r12, r5, lsr #(16 + \ls)
+	and	r0, r5, #(((1 << (16 - \ls)) - 1) << \ls)
+	add	r12, r0, r12, lsl #16
+	ldrb	r12, [r11, r12, lsr #\ls]
+	mov	r12, r12, lsl #1
+	ldrh	r12, [r10, r12]
+	strh	r12, [r2, r1]
+8\n:
+	add	r3, r3, r4
+	add	r5, r5, r7
+	.endm
 	.macro	PERSPROWS name, mask, os, ls, key
 	.global	\name
 \name:
@@ -3318,9 +3336,9 @@ face_shade:
 	ldr	r2, [r0, #4]
 	ldr	r11, [r0, #44]
 	ldr	r10, [r0, #48]
+	.if	\key
 6:
 	ldrh	r12, [r2], #2
-	.if	\key
 	mov	lr, r3, asr #8
 	cmp	lr, r12
 	andgt	r12, r9, #\mask
@@ -3332,26 +3350,39 @@ face_shade:
 	movgt	r12, r12, lsl #1
 	ldrgth	r12, [r10, r12]
 	strgth	r12, [r1]
-	.else
-	cmp	r12, r3, asr #8
-	bge	8f
-	mov	lr, r3, asr #8
-	strh	lr, [r2, #-2]
-	and	r12, r9, #\mask
-	and	r0, r5, #\mask
-	orr	r12, r12, r0, lsr #\os
-	ldrb	r12, [r11, r12, lsr #\ls]
-	mov	r12, r12, lsl #1
-	ldrh	r12, [r10, r12]
-	strh	r12, [r1]
-8:
-	.endif
 	add	r1, r1, #2
 	add	r3, r3, r4
 	add	r5, r5, r7
 	add	r9, r9, r8
 	subs	r6, r6, #1
 	bne	6b
+	.else
+	@ (v0.4.79) the segment's pixels as half_tex1's (Maps 9300's rows): the texel's two coordinates packed in one
+	@ register at the segment's start (16 - ls whole bits, ls fraction bits each; exact at every segment's start), one
+	@ add a pixel for both; the colour store off the depth pointer (r1 = colour - depth - 2); two pixels a turn
+	bic	r12, r9, #((1 << (16 - \ls)) - 1)
+	mov	lr, r5, lsl #\ls
+	mov	lr, lr, lsr #16
+	orr	r5, lr, r12, lsl #\ls
+	mov	r12, r8, asr #(16 - \ls)
+	mov	r7, r7, asr #(16 - \ls)
+	add	r7, r7, r12, lsl #16
+	sub	r1, r1, r2
+	sub	r1, r1, #2
+	tst	r6, #1
+	beq	6f
+	PRPIX	1, \ls
+	subs	r6, r6, #1
+	beq	7f
+6:
+	PRPIX	2, \ls
+	PRPIX	3, \ls
+	subs	r6, r6, #2
+	bne	6b
+7:
+	add	r1, r1, r2
+	add	r1, r1, #2
+	.endif
 	ldr	r0, [sp, #4]
 	str	r1, [r0, #0]
 	str	r2, [r0, #4]
