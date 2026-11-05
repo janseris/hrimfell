@@ -1,0 +1,5 @@
+NAME BNCH
+#include <eikon.rh>
+RESOURCE RSS_SIGNATURE { }
+RESOURCE TBUF r_default_document_name { buf=""; }
+RESOURCE EIK_APP_INFO { }

@@ -1,0 +1,69 @@
+// items.h - item and item-mesh ids shared by the game modules
+#ifndef ITEMS_H
+#define ITEMS_H
+
+// item meshes: index = ItemDef::mesh
+enum
+    {
+    IM_SWORD = 0, IM_SWORD2, IM_AXE, IM_DAGGER, IM_SHIELD, IM_HELMET, IM_CUIRASS, IM_BOOTS, IM_GLOVES,
+    IM_POTION, IM_BREAD, IM_CHEESE, IM_APPLE, IM_MEAT, IM_HERB, IM_PELT, IM_BOOK, IM_KEY, IM_RING,
+    IM_SCALE, IM_FANG,
+    // food and goods (built at real size)
+    IM_CABBAGE, IM_LEEK, IM_POTATO, IM_CARROT, IM_GARLIC, IM_SALT, IM_FISH, IM_BOWL, IM_NECKLACE, IM_GEM, IM_MUG,
+    IM_STEAK, IM_JUG, IM_PLATE, IM_FLAGON, IM_CLAYPOT, IM_ROAST, IM_TORCH,
+    // v0.4.14: the apothecary's wares
+    IM_MUSHROOM, IM_INSECT, IM_EGG, IM_FEATHER, IM_CRYSTAL, IM_ROOT,
+    // v0.4.37: maces and hammers, bows, arrows, ingots
+    IM_MACE, IM_BOW, IM_ARROW, IM_INGOT,
+    // v0.4.72: a sheet of paper (Skyrim's notes: Clutter\Books\Note01-04, 23 x 14 cm)
+    IM_NOTE,
+    IM_COUNT
+    };
+
+enum
+    {
+    IT_IRON_SWORD = 0, IT_STEEL_SWORD, IT_IRON_AXE, IT_IRON_DAGGER, IT_BARROW_BLADE,
+    IT_FUR_ARMOR, IT_IRON_ARMOR, IT_FUR_HELMET, IT_IRON_HELMET, IT_FUR_BOOTS, IT_IRON_BOOTS,
+    IT_FUR_GAUNTLETS, IT_IRON_GAUNTLETS, IT_HIDE_SHIELD, IT_IRON_SHIELD,
+    IT_POT_MHEAL, IT_POT_HEAL, IT_POT_MMAG, IT_POT_MSTAM,
+    IT_BREAD, IT_CHEESE, IT_APPLE, IT_VENISON,
+    IT_LICHEN, IT_WOLF_FANG, IT_TROLL_TUSK, IT_WIGHT_DUST,
+    IT_BOOK_DRAGONBORN, IT_BOOK_DRAGONLANG, IT_BOOK_NIGHTTEARS,
+    IT_WOLF_PELT, IT_TROLL_PELT, IT_RUSTY_KEY, IT_SILVER_RING, IT_DRAGON_SCALE,
+    // v0.4: market goods, raw food and cooking
+    IT_CABBAGE, IT_LEEK, IT_POTATO, IT_CARROT, IT_GARLIC, IT_SALT, IT_RAW_VENISON, IT_SALMON, IT_RAW_BEEF,
+    IT_SALMON_STEAK, IT_COOKED_BEEF, IT_VEG_SOUP, IT_CABBAGE_SOUP, IT_APPLE_STEW, IT_VENISON_STEW, IT_GARLIC_BREAD,
+    IT_GOLD_RING, IT_SILVER_NECKLACE, IT_GOLD_NECKLACE, IT_GARNET, IT_AMETHYST, IT_TANKARD,
+    IT_JUG, IT_PLATE, IT_WOOD_BOWL,
+    IT_BERRY_WINE, IT_CREAM_MEAD, IT_EMBER_DRAUGHT, IT_CLAY_POT, IT_CHARRED_MEAT, IT_TORCH,
+    // v0.4.11: the catacombs
+    IT_BONE_MEAL,
+    // v0.4.12: the apothecary
+    IT_BLISTERWORT, IT_LAVENDER, IT_BLUE_FLOWER, IT_WHEAT, IT_POT_CURE, IT_POISON_WEAK, IT_BOOK_HERBS,
+    // v0.4.14: the rest of an apothecary's shelves
+    IT_GRAVEBELL, IT_WHITE_CAP, IT_HOUNDROOT, IT_JUNIPER, IT_EMBER_SALTS, IT_SHADOW_SALTS, IT_WISP_DUST, IT_CRONE_FEATHERS,
+    IT_TROLL_FAT, IT_RAT_TAIL, IT_SPIDER_EGG, IT_EMBER_FLY, IT_BLUE_FLY, IT_IMP_CAP, IT_TAPROOT, IT_PIKE_SCALES,
+    IT_WRAITH_TEETH, IT_WARBLER_EGG, IT_GHOST_ESSENCE, IT_TREANT_SAP, IT_ROCK_MOSS, IT_POT_RESFIRE, IT_FROST_VENOM,
+    // v0.5: Bleak Falls Barrow
+    IT_GOLDEN_CLAW, IT_ARVEL_JOURNAL, IT_DRAGONSTONE, IT_BOOK_THIEF, IT_POT_RESFROST, IT_NORD_FROST,
+    // v0.4.35: what hangs in Skyrim's houses (FoodRabbit 00065C9E, FoodPheasant 00065C9D)
+    IT_RAW_RABBIT, IT_PHEASANT,
+    // v0.4.37: what Skyrim's bandits carry (their leveled lists at level 1)
+    IT_IRON_MACE, IT_IRON_GREATSWORD, IT_IRON_BATTLEAXE, IT_IRON_WARHAMMER, IT_HUNTING_BOW, IT_LONG_BOW, IT_IRON_ARROW,
+    IT_LOCKPICK, IT_IRON_INGOT, IT_STEEL_DAGGER,
+    // v0.4.39: what the land's flowers give (Skyrim's ingredients)
+    IT_PURPLE_FLOWER, IT_RED_FLOWER, IT_THISTLE, IT_TUNDRA_COTTON, IT_SNOWBERRIES,
+    // v0.4.39: what the land's animals give
+    IT_DEER_HIDE, IT_SMALL_ANTLERS, IT_LARGE_ANTLERS, IT_FOX_PELT, IT_GOAT_HIDE, IT_GOAT_LEG, IT_MUDCRAB_CHITIN,
+    // v0.4.68: Forelhost (dunForelhostGlassClaw; Rahgot's mask, the dragon priest's)
+    IT_GLASS_CLAW, IT_RAHGOT,
+    // v0.4.69: Siege on the Dragon Cult (dunForelhostJournal; the well's key - Skyrim makes it in the crypt's chest)
+    IT_FH_JOURNAL, IT_FH_WELLKEY,
+    // v0.4.71: Rahgot's staff (Skyrim's Dragon Priest Staff: Wall of Flames)
+    IT_RAHGOT_STAFF,
+    // v0.4.72: Forelhost's books and notes (their texts Skyrim's: docs/maps/gen_fh_books.py -> fh_books.inc)
+    IT_FH_NOTE_FRODA, IT_FH_NOTE_RAHGOT, IT_FH_NOTE_ORDERS, IT_FH_NOTE_POISON, IT_FH_NOTE_DEATH, IT_BK_EXODUS, IT_TOME_FLAMES,
+    IT_COUNT
+    };
+
+#endif

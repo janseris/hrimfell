@@ -1,0 +1,47 @@
+# ---- Skyrim's assets and everything made from them (not ours to publish) ----
+# the packed areas, textures, items, terrain and maps (tools/lib_pack.py, make_land.py from a Skyrim export)
+/data/
+# generated from Skyrim.esm, its meshes and textures, or an area export (docs/maps/gen_*.py)
+/src/kit_ext.inc
+/src/area_*/
+/src/kit_flora.bin
+/src/kit_items.bin
+/src/kit_items.txt
+/src/kit_tex.bin
+/src/kit_tex_names.txt
+/src/kit_texpics.pkl
+/src/kit_dialogue.inc
+/src/fh_books.inc
+/src/fh_quest.inc
+/src/fh_kit.inc
+/src/bfb_kit.inc
+/src/bfb_ext.inc
+/src/rw_ext.inc
+/src/sginn_ext.inc
+/src/wr_folk.inc
+# Skyrim's maps, art and screenshots used as references, and pictures over them
+/docs/maps/ref/
+/docs/maps/ref_*.png
+/docs/maps/overlay_*.png
+/docs/maps/whiterun_plan_vs_skyrim.png
+/docs/maps/bfb_outside_v*.png
+/docs/maps/rwtrader_v*.png
+/docs/maps/sginn_v*.png
+# the game's screenshots (Skyrim's textures in them)
+/shots/
+# ---- build outputs ----
+/build/
+/sis/*.sis
+/emu/gout/
+/emu/out/
+/emu/rungame
+/host/*
+!/host/*.cpp
+!/host/*.h
+!/host/*.sh
+!/host/*.py
+__pycache__/
+*.pyc
+*.o
+*.ppm
+/src/game_lines.inc

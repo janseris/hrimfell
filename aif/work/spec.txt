@@ -1,0 +1,5 @@
+ELangEnglish=Hrimfell
+mbmfile=work/aif.mbm
+hidden=0
+embeddability=0
+newfile=0
