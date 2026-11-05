@@ -530,6 +530,17 @@ public:
     struct FarGroup { Mesh m; int x, y, z, x0, z0, x1, z1, nobj; u8 slots[FG_SLOTS * 4]; };
     FarGroup iFG[MAXFG]; int iNFG; u8* iObjGrp;
     enum { PVSMIX = 1024 }; u8* iPvsMix;
+    // (v0.4.76) the current interior's pieces: their list (DrawInterior reads only those, and a hidden one's record
+    // not at all), and a grid of 4 m squares for TopAt / BlockedIn (they had read all the pieces of every loaded hall:
+    // Forelhost's Stronghold, 17 % of a frame's cache misses). Made again when the cell or the pieces change.
+    enum { IG_SQ = 4 * 256, IG_MAXSQ = 4096, IG_MAXENT = 16384 };
+    u16* iICell; int iICellN;
+    int* iIGHead; u16* iIGList; int iIGx0, iIGz0, iIGw, iIGh, iIGsq, iIGok;
+    int iIGCell, iIGNum;
+    enum { IR_CELLS = 64 }; int iIRange[IR_CELLS * 2], iIRangeNum;  // (v0.4.76) each cell's pieces: from, to (end)
+    void IRangeOf(int aCell, int& aFrom, int& aTo);
+    void IGridMake();
+    int IGridAt(int aX, int aZ, int aR, int& aX0, int& aX1, int& aZ0, int& aZ1) const;
     int iOccEvery;          // (v0.4.75) the occlusion map made again after this many triangles (0: at pieces 16, 48, 128)
       // (v0.4.74) what can be seen, with what is seen beyond the open doors (8192 pieces)
     int iFGFarM, iFGGridU; u8 iFGFar[MAXFG];

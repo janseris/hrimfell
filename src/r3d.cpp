@@ -324,6 +324,8 @@ void R3D::Init(u8* aMem)
     iSortKey = (u32*)Alloc(MAXOBJ * 2 * 4); iSortCnt = (int*)Alloc(513 * 4);
     iLightR = iLightG = iLightB = 256;
     iPvsMix = Alloc(PVSMIX);
+    iICell = (u16*)Alloc(MAXIOBJ * 2); iIGHead = (int*)Alloc((IG_MAXSQ + 1) * 4); iIGList = (u16*)Alloc(IG_MAXENT * 2);
+    iICellN = 0; iIGok = 0; iIGCell = -1; iIGNum = -1; iIRangeNum = -1;
     iOccEvery = 0;
     iObjGrp = Alloc(MAXOBJ); r3d_memset(iObjGrp, 0, MAXOBJ); iNFG = 0; iFGFarM = 120; iFGGridU = 8 * METER;
     r3d_memset(&iFlatHS, 0, sizeof(iFlatHS));
@@ -4838,13 +4840,17 @@ void R3D::DrawInterior()
     for (pass = 0; pass < 2; pass++)
     {
     if (pass == 1) OccBuild();
-    int nkey = 0;
-    for (i = 0; i < iINum; i++)
+    int nkey = 0, li;
+    IGridMake();
+    // (v0.4.76) this cell's own pieces only, and what can't be seen from here left out by its index - its record
+    // never read (the cache)
+    for (li = 0; li < iICellN; li++)
         {
+        i = iICell[li];
+        if (iPvsBits) { unsigned k = (unsigned)(i - iPvsFirst); if (k < (unsigned)iPvsN && !((iPvsBits[k >> 3] >> (k & 7)) & 1)) continue; }   // (hidden from here)
         const Obj& o = iIObj[i];
         if (o.flag != iCell || o.type < ST_CUSTOM) continue;
         if (o.pad && !((iZoneMask >> o.pad) & 1)) continue;          // a room behind a shut door
-        if (iPvsBits) { unsigned k = (unsigned)(i - iPvsFirst); if (k < (unsigned)iPvsN && !((iPvsBits[k >> 3] >> (k & 7)) & 1)) continue; }   // (hidden from here)
         const StaticDef& d = iDefs[o.type - ST_CUSTOM];
         const Mesh* m = d.mesh;
         if (!m) continue;
@@ -4935,8 +4941,27 @@ int R3D::TopAt(int aX, int aZ, int aYMax)
     int best = -(1 << 30);
     if (iCell)
         {
-        int i;
-        for (i = 0; i < iINum; i++)
+        int gx0, gx1, gz0, gz1;
+        if (iIGok && iIGCell == iCell && iIGNum == iINum)
+            {
+            if (!IGridAt(aX, aZ, 0, gx0, gx1, gz0, gz1)) return best;      // (no piece reaches out there)
+            // (v0.4.76) the pieces over this square only
+            const int* h = iIGHead + gz0 * iIGw + gx0;
+            int e;
+            for (e = h[0]; e < h[1]; e++)
+                {
+                const Obj& o = iIObj[iIGList[e]];
+                const StaticDef& d = iDefs[o.type - ST_CUSTOM];
+                if (!d.hy) continue;
+                int top = o.y + d.hy;
+                if (top > aYMax || top <= best || !FootIn(d, o, aX, aZ)) continue;
+                best = top;
+                }
+            return best;
+            }
+        int i, from, to;
+        IRangeOf(iCell, from, to);
+        for (i = from; i < to; i++)
             {
             const Obj& o = iIObj[i];
             if (o.flag != iCell || o.type < ST_CUSTOM) continue;
@@ -4973,9 +4998,20 @@ int R3D::TopAt(int aX, int aZ, int aYMax)
 // collision inside a cell: oriented boxes / circles with a vertical extent (feet y .. head)
 int R3D::BlockedIn(int aX, int aZ, int aR, int aFeetY)
     {
-    int i;
-    for (i = 0; i < iINum; i++)
+    int i, n = iINum, gx, gz, gx0 = 0, gx1 = -1, gz0 = 0, gz1 = -1;
+    // (the grid only for the cell being drawn - someone in another hall is looked up the old way, no grid made for it)
+    int grid = iIGok && iIGCell == iCell && iIGNum == iINum && IGridAt(aX, aZ, aR, gx0, gx1, gz0, gz1);
+    if (!grid && iIGok && iIGCell == iCell && iIGNum == iINum) return 0;       // (beyond every piece's reach)
+    // (v0.4.76) the pieces of the squares within aR only (a piece in two of them looked at twice: no harm)
+    for (gz = grid ? gz0 : 0; gz <= (grid ? gz1 : 0); gz++)
+    for (gx = grid ? gx0 : 0; gx <= (grid ? gx1 : 0); gx++)
+    {
+    int from = 0, to = n;
+    if (!grid) IRangeOf(iCell, from, to);
+    int e0 = grid ? iIGHead[gz * iIGw + gx] : from, e1 = grid ? iIGHead[gz * iIGw + gx + 1] : to, e;
+    for (e = e0; e < e1; e++)
         {
+        i = grid ? iIGList[e] : e;
         const Obj& o = iIObj[i];
         if (o.flag != iCell || o.type < ST_CUSTOM) continue;
         const StaticDef& d = iDefs[o.type - ST_CUSTOM];
@@ -4994,7 +5030,104 @@ int R3D::BlockedIn(int aX, int aZ, int aR, int aFeetY)
             if (Abs(dx) < r && Abs(dz) < r && (dx >> 4) * (dx >> 4) + (dz >> 4) * (dz >> 4) < (r >> 4) * (r >> 4)) return 1;
             }
         }
+    }
     return 0;
+    }
+
+// (v0.4.76) where each cell's pieces lie in iIObj (a cell's are added together, so one span each; a cell in two places
+// spans both and what is between - only slower, never wrong: the scans still test the cell)
+void R3D::IRangeOf(int aCell, int& aFrom, int& aTo)
+    {
+    if (iIRangeNum != iINum)
+        {
+        int i;
+        for (i = 0; i < IR_CELLS; i++) { iIRange[i * 2] = iINum; iIRange[i * 2 + 1] = 0; }
+        for (i = 0; i < iINum; i++)
+            {
+            int c = iIObj[i].flag;
+            if (c < 0 || c >= IR_CELLS) continue;
+            if (i < iIRange[c * 2]) iIRange[c * 2] = i;
+            if (i + 1 > iIRange[c * 2 + 1]) iIRange[c * 2 + 1] = i + 1;
+            }
+        iIRangeNum = iINum;
+        }
+    if (aCell < 0 || aCell >= IR_CELLS) { aFrom = 0; aTo = iINum; return; }
+    aFrom = iIRange[aCell * 2]; aTo = iIRange[aCell * 2 + 1];
+    }
+// (v0.4.76) the current interior's pieces listed, and on a grid of squares (IG_SQ, bigger for a big hall): each piece
+// in every square its reach covers (its model's radius, or its box or circle where wider); the squares' entries in
+// one array (iIGHead: where each square's start, one more for the end). Too many entries: no grid (all pieces read)
+static int IReach(const StaticDef& d, const Obj& o)
+    {
+    int r = d.mesh ? d.mesh->radius : 0;
+    int b = d.hx ? d.hx + d.hz + Abs(d.bx) + Abs(d.bz) : 0;
+    if (b > r) r = b;
+    if (d.rad > r) r = d.rad;
+    return (r * o.scale >> 8) + 64;
+    }
+void R3D::IGridMake()
+    {
+    if (iIGCell == iCell && iIGNum == iINum) return;
+    iIGCell = iCell; iIGNum = iINum; iIGok = 0; iICellN = 0;
+    int i, x0 = 1 << 30, z0 = 1 << 30, x1 = -(1 << 30), z1 = -(1 << 30);
+    for (i = 0; i < iINum; i++)
+        {
+        const Obj& o = iIObj[i];
+        if (o.flag != iCell || o.type < ST_CUSTOM || !iDefs[o.type - ST_CUSTOM].mesh) continue;
+        if (iICellN < MAXIOBJ) iICell[iICellN++] = (u16)i;
+        int r = IReach(iDefs[o.type - ST_CUSTOM], o);
+        if (o.x - r < x0) x0 = o.x - r;
+        if (o.x + r > x1) x1 = o.x + r;
+        if (o.z - r < z0) z0 = o.z - r;
+        if (o.z + r > z1) z1 = o.z + r;
+        }
+    if (!iICellN) return;
+    int sq = IG_SQ;
+    while (((x1 - x0) / sq + 1) * ((z1 - z0) / sq + 1) > IG_MAXSQ) sq *= 2;
+    iIGsq = sq; iIGx0 = x0; iIGz0 = z0; iIGw = (x1 - x0) / sq + 1; iIGh = (z1 - z0) / sq + 1;
+    int nsq = iIGw * iIGh, k, gx, gz;
+    for (k = 0; k <= nsq; k++) iIGHead[k] = 0;
+    // counted, then placed (each square's entries together)
+    int pass;
+    for (pass = 0; pass < 2; pass++)
+        {
+        for (k = 0; k < iICellN; k++)
+            {
+            const Obj& o = iIObj[iICell[k]];
+            int r = IReach(iDefs[o.type - ST_CUSTOM], o);
+            int ax = (o.x - r - x0) / sq, bx = (o.x + r - x0) / sq, az = (o.z - r - z0) / sq, bz = (o.z + r - z0) / sq;
+            for (gz = az; gz <= bz; gz++)
+                for (gx = ax; gx <= bx; gx++)
+                    {
+                    int q = gz * iIGw + gx;
+                    if (pass == 0) iIGHead[q + 1]++;
+                    else iIGList[iIGHead[q]++] = iICell[k];
+                    }
+            }
+        if (pass == 0)
+            {
+            for (k = 0; k < nsq; k++) iIGHead[k + 1] += iIGHead[k];
+            if (iIGHead[nsq] > IG_MAXENT) return;
+            }
+        }
+    // (the placing moved each start to the next square's: back by one)
+    for (k = nsq; k > 0; k--) iIGHead[k] = iIGHead[k - 1];
+    iIGHead[0] = 0;
+    iIGok = 1;
+    }
+// the squares within aR of (aX, aZ), clipped to the grid; 0 when none
+int R3D::IGridAt(int aX, int aZ, int aR, int& aX0, int& aX1, int& aZ0, int& aZ1) const
+    {
+    aX0 = (aX - aR - iIGx0) / iIGsq; aX1 = (aX + aR - iIGx0) / iIGsq;
+    aZ0 = (aZ - aR - iIGz0) / iIGsq; aZ1 = (aZ + aR - iIGz0) / iIGsq;
+    if (aX - aR < iIGx0) aX0 = -1;
+    if (aZ - aR < iIGz0) aZ0 = -1;
+    if (aX0 < 0) aX0 = 0;
+    if (aZ0 < 0) aZ0 = 0;
+    if (aX1 >= iIGw) aX1 = iIGw - 1;
+    if (aZ1 >= iIGh) aZ1 = iIGh - 1;
+    if (aX + aR < iIGx0 || aZ + aR < iIGz0) return 0;
+    return aX0 <= aX1 && aZ0 <= aZ1;
     }
 
 void R3D::BeginOverlay(u16* aOut, int aStride)

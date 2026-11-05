@@ -501,3 +501,12 @@ fps estimate now 3 cycles an instruction (their phone: ~20 ns each; ours was 2.5
 (3) Show FPS adds "d<ms> c<ms>": drawing and the copy to the screen, averaged over the second. OPEN: the copy is a full
 pass over the view (theirs: ~5 ms for 320 x 200) - drawing straight into the screen would save it but may show half-
 drawn frames (the sky, then walls, then things over them); decide from the phone's "c" figure.
+Nov 6 00:20 (user: "read maps9300 source and deduce optimizations"). Maps' renderer against ours: corners once a
+mesh, culling in ARM, packed rows (taken) - already or done; Maps' biggest later wins were the data cache. Our cache
+model by function (rungame CACHE=1 CACHEMAP=1, from the cut-off turn) showed the Stronghold's misses led by TopAt
+(17 %) and BlockedIn (5 %): game lookups scanning every loaded hall's pieces. v0.4.77: R3D::IGridMake - the drawn
+interior's pieces listed (DrawInterior reads only them, a hidden one's record not at all) and on a 4 m grid for
+TopAt/BlockedIn; lookups for other halls (their people, Forelhost's draugr) scan only that hall's span (IRangeOf) -
+no grid made for them (made per question it thrashed). Misses a frame: Stronghold 172 -> 150 k, crypt 143 -> 104 k;
+pixels, tests, doors and the stuck probe unchanged. Left from Maps: the row loop without clamps for triangles wholly on
+the screen; TopAt's remaining misses (still 7-10 %: the props' and people's lookups in the drawn hall's squares).
