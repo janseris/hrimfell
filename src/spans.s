@@ -130,8 +130,8 @@ half_gouraud1:
 	mov	lr, r3, asr #8
 	strh	lr, [r2, #-2]
 	mov	r12, r5, lsr #26
-	and	r0, r5, #0xFC00
-	add	r12, r0, r12, lsl #16
+	and	r8, r5, #0xFC00
+	add	r12, r8, r12, lsl #16
 	ldrb	r12, [r11, r12, lsr #10]
 	mov	r12, r12, lsl #1
 	ldrh	r12, [r10, r12]
@@ -141,14 +141,24 @@ half_gouraud1:
 	add	r5, r5, r7
 	.endm
 @ (v0.4.77) half_tex1's rows: clamp 1 clips each row to xlo..xhi; 0 for a half wholly within them (as Maps 9300's
-@ r3_rows_tex4n: 6 instructions a row less)
+@ r3_rows_tex4n: 6 instructions a row less). (v0.4.78) What is the same for every row is set once a call and kept
+@ in registers - r4 the depth's step, r7 the packed texel step, r10 the palette, r11 the picture - and the state
+@ (r0) is never put aside: the pixels use r8 as their scratch
 	.macro	HT1ROWS sfx, clamp
+	ldr	r4, [r0, #64]
+	ldr	r7, [r0, #68]
+	ldr	r8, [r0, #72]
+	mov	r12, r8, asr #6
+	mov	r7, r7, asr #6
+	add	r7, r7, r12, lsl #16
+	ldr	r10, [r0, #100]
+	ldr	r11, [r0, #96]
 .Lht1\sfx\()_y:
-	ldmia	r0, {r1-r4}
+	ldmia	r0, {r1, r2, r3, r6}
 	add	r2, r1, r2
-	add	r4, r3, r4
+	add	r6, r3, r6
 	str	r2, [r0, #0]
-	str	r4, [r0, #8]
+	str	r6, [r0, #8]
 	add	r5, r1, #0x7F00
 	add	r5, r5, #0xFF
 	mov	r5, r5, asr #16
@@ -165,37 +175,31 @@ half_gouraud1:
 	.endif
 	subs	r6, r6, r5
 	ble	.Lht1\sfx\()_skip
-	mov	r7, r5, lsl #16
-	add	r7, r7, #0x8000
-	sub	r7, r7, r1
-	mov	r7, r7, asr #8
+	mov	r9, r5, lsl #16
+	add	r9, r9, #0x8000
+	sub	r9, r9, r1
+	mov	r9, r9, asr #8
 	ldr	r1, [r0, #80]
 	ldr	r2, [r0, #84]
 	add	r1, r1, r5, lsl #1
 	add	r2, r2, r5, lsl #1
 	ldr	r3, [r0, #16]
 	ldr	r8, [r0, #48]
-	mla	r3, r8, r7, r3
+	mla	r3, r8, r9, r3
 	ldr	r5, [r0, #24]
 	ldr	r8, [r0, #52]
-	mla	r5, r8, r7, r5
-	ldr	r9, [r0, #32]
+	mla	r5, r8, r9, r5
+	ldr	r12, [r0, #32]
 	ldr	r8, [r0, #56]
-	mla	r9, r8, r7, r9
-	ldr	r11, [r0, #96]
-	ldr	r10, [r0, #100]
-	str	r0, [sp, #-4]!
+	mla	r12, r8, r9, r12
 	@ (v0.4.76, as Maps 9300's rows) the texel's two coordinates packed in one register, one add a pixel for both:
-	@ r5 = P, the row coordinate (r9, 16.16) in its top half and the column one (r5) in its bottom half, 6 whole
+	@ r5 = P, the row coordinate (r12, 16.16) in its top half and the column one (r5) in its bottom half, 6 whole
 	@ bits and 10 fraction bits each (64 x 64 pictures); a carry or borrow between the halves when the column
-	@ coordinate wraps moves the row one by 1/1024 texel. Each row starts from the exact values; the packed
-	@ step (r7) worked out once a call (at [sp, #4]). And one pointer: the colour store addresses off the depth
-	@ pointer (r1 = colour - depth - 2, a row's constant)
-	ldr	r4, [r0, #64]
-	ldr	r7, [sp, #4]
+	@ coordinate wraps moves the row one by 1/1024 texel. Each row starts from the exact values. And one pointer:
+	@ the colour store addresses off the depth pointer (r1 = colour - depth - 2, a row's constant)
 	sub	r1, r1, r2
 	sub	r1, r1, #2
-	bic	r12, r9, #63
+	bic	r12, r12, #63
 	mov	lr, r5, lsl #10
 	mov	lr, lr, lsr #16
 	orr	r5, lr, r12, lsl #10
@@ -203,66 +207,58 @@ half_gouraud1:
 	beq	.Lht1\sfx\()_x2
 	HT1PIX	1\sfx
 	subs	r6, r6, #1
-	beq	.Lht1\sfx\()_xe
+	beq	.Lht1\sfx\()_skip
 .Lht1\sfx\()_x2:
 	HT1PIX	2\sfx
 	HT1PIX	3\sfx
 	subs	r6, r6, #2
 	bne	.Lht1\sfx\()_x2
-.Lht1\sfx\()_xe:
-	ldr	r0, [sp], #4
 .Lht1\sfx\()_skip:
 	add	r12, r0, #16
-	ldmia	r12, {r1-r6}		@ (v0.4.77) w, u, v stepped: the fourth value is not this loop's
+	ldmia	r12, {r1, r2, r3, r5, r6, r8}	@ w, u, v stepped (v0.4.77: the fourth value is not this loop's)
 	add	r1, r1, r2
-	add	r3, r3, r4
-	add	r5, r5, r6
-	stmia	r12, {r1-r6}
+	add	r3, r3, r5
+	add	r6, r6, r8
+	stmia	r12, {r1, r2, r3, r5, r6, r8}
 	add	r12, r0, #80
-	ldmia	r12, {r1-r4}
-	ldr	r5, [r0, #104]
-	add	r1, r1, r5
-	add	r2, r2, r4, lsl #1
+	ldmia	r12, {r1, r2, r3, r5}		@ the colour row, the depth row, rows left, the width
+	ldr	r6, [r0, #104]
+	add	r1, r1, r6
+	add	r2, r2, r5, lsl #1
 	subs	r3, r3, #1
-	stmia	r12, {r1-r3}
+	stmia	r12, {r1, r2, r3}
 	bgt	.Lht1\sfx\()_y
-	add	sp, sp, #4
 	ldmfd	sp!, {r4-r11, lr}
 	bx	lr
 	.endm
 	.global	half_tex1
 half_tex1:
 	stmfd	sp!, {r4-r11, lr}
-	ldr	r7, [r0, #68]
-	ldr	r8, [r0, #72]
-	mov	r12, r8, asr #6
-	mov	r7, r7, asr #6
-	add	r7, r7, r12, lsl #16
-	str	r7, [sp, #-4]!		@ the packed step, for every row of this call
 	@ (v0.4.77) the half wholly within xlo..xhi (its rows' ends at its first and last row, the edges being straight)?
 	@ then the rows without the clamps
 	ldr	r12, [r0, #88]
 	subs	r12, r12, #1
-	blt	.Lht1c_y
-	ldmia	r0, {r1-r4}
+	blt	.Lht1c_y0
+	ldmia	r0, {r1, r2, r3, r6}
 	mla	r5, r2, r12, r1
-	mla	r6, r4, r12, r3
-	ldr	r7, [r0, #108]
-	mov	r7, r7, lsl #16
-	sub	r7, r7, #0x7F00
-	sub	r7, r7, #0xFF
-	cmp	r1, r7
-	cmpge	r5, r7
-	blt	.Lht1c_y
-	ldr	r7, [r0, #112]
-	add	r7, r7, #1
-	mov	r7, r7, lsl #16
-	sub	r7, r7, #0x7F00
-	sub	r7, r7, #0xFF
-	cmp	r3, r7
-	cmplt	r6, r7
-	bge	.Lht1c_y
+	mla	r9, r6, r12, r3
+	ldr	r8, [r0, #108]
+	mov	r8, r8, lsl #16
+	sub	r8, r8, #0x7F00
+	sub	r8, r8, #0xFF
+	cmp	r1, r8
+	cmpge	r5, r8
+	blt	.Lht1c_y0
+	ldr	r8, [r0, #112]
+	add	r8, r8, #1
+	mov	r8, r8, lsl #16
+	sub	r8, r8, #0x7F00
+	sub	r8, r8, #0xFF
+	cmp	r3, r8
+	cmplt	r9, r8
+	bge	.Lht1c_y0
 	HT1ROWS	n, 0
+.Lht1c_y0:
 	HT1ROWS	c, 1
 @ void half_flat1(HalfState*)
 @ (v0.4.40: the edges, w, the rows' pointers kept in registers from row to row; the steps read as needed - the
@@ -603,8 +599,8 @@ half_flat2:
 	mov	lr, r3, asr #8
 	strh	lr, [r2, #-2]
 	mov	r12, r5, lsr #25
-	and	r0, r5, #0xFE00
-	add	r12, r0, r12, lsl #16
+	and	r8, r5, #0xFE00
+	add	r12, r8, r12, lsl #16
 	ldrb	r12, [r11, r12, lsr #9]
 	mov	r12, r12, lsl #1
 	ldrh	r12, [r10, r12]
@@ -614,14 +610,24 @@ half_flat2:
 	add	r5, r5, r7
 	.endm
 @ (v0.4.77) half_texq1's rows: clamp 1 clips each row to xlo..xhi; 0 for a half wholly within them (as Maps 9300's
-@ r3_rows_tex4n: 6 instructions a row less)
+@ r3_rows_tex4n: 6 instructions a row less). (v0.4.78) What is the same for every row is set once a call and kept
+@ in registers - r4 the depth's step, r7 the packed texel step, r10 the palette, r11 the picture - and the state
+@ (r0) is never put aside: the pixels use r8 as their scratch
 	.macro	HTQROWS sfx, clamp
+	ldr	r4, [r0, #64]
+	ldr	r7, [r0, #68]
+	ldr	r8, [r0, #72]
+	mov	r12, r8, asr #7
+	mov	r7, r7, asr #7
+	add	r7, r7, r12, lsl #16
+	ldr	r10, [r0, #100]
+	ldr	r11, [r0, #96]
 .Lhtq\sfx\()_y:
-	ldmia	r0, {r1-r4}
+	ldmia	r0, {r1, r2, r3, r6}
 	add	r2, r1, r2
-	add	r4, r3, r4
+	add	r6, r3, r6
 	str	r2, [r0, #0]
-	str	r4, [r0, #8]
+	str	r6, [r0, #8]
 	add	r5, r1, #0x7F00
 	add	r5, r5, #0xFF
 	mov	r5, r5, asr #16
@@ -638,37 +644,31 @@ half_flat2:
 	.endif
 	subs	r6, r6, r5
 	ble	.Lhtq\sfx\()_skip
-	mov	r7, r5, lsl #16
-	add	r7, r7, #0x8000
-	sub	r7, r7, r1
-	mov	r7, r7, asr #8
+	mov	r9, r5, lsl #16
+	add	r9, r9, #0x8000
+	sub	r9, r9, r1
+	mov	r9, r9, asr #8
 	ldr	r1, [r0, #80]
 	ldr	r2, [r0, #84]
 	add	r1, r1, r5, lsl #1
 	add	r2, r2, r5, lsl #1
 	ldr	r3, [r0, #16]
 	ldr	r8, [r0, #48]
-	mla	r3, r8, r7, r3
+	mla	r3, r8, r9, r3
 	ldr	r5, [r0, #24]
 	ldr	r8, [r0, #52]
-	mla	r5, r8, r7, r5
-	ldr	r9, [r0, #32]
+	mla	r5, r8, r9, r5
+	ldr	r12, [r0, #32]
 	ldr	r8, [r0, #56]
-	mla	r9, r8, r7, r9
-	ldr	r11, [r0, #96]
-	ldr	r10, [r0, #100]
-	str	r0, [sp, #-4]!
+	mla	r12, r8, r9, r12
 	@ (v0.4.76, as Maps 9300's rows) the texel's two coordinates packed in one register, one add a pixel for both:
-	@ r5 = P, the row coordinate (r9, 16.16) in its top half and the column one (r5) in its bottom half, 7 whole
+	@ r5 = P, the row coordinate (r12, 16.16) in its top half and the column one (r5) in its bottom half, 7 whole
 	@ bits and 9 fraction bits each (128 x 128 pictures); a carry or borrow between the halves when the column
-	@ coordinate wraps moves the row one by 1/1024 texel. Each row starts from the exact values; the packed
-	@ step (r7) worked out once a call (at [sp, #4]). And one pointer: the colour store addresses off the depth
-	@ pointer (r1 = colour - depth - 2, a row's constant)
-	ldr	r4, [r0, #64]
-	ldr	r7, [sp, #4]
+	@ coordinate wraps moves the row one by 1/512 texel. Each row starts from the exact values. And one pointer:
+	@ the colour store addresses off the depth pointer (r1 = colour - depth - 2, a row's constant)
 	sub	r1, r1, r2
 	sub	r1, r1, #2
-	bic	r12, r9, #127
+	bic	r12, r12, #127
 	mov	lr, r5, lsl #9
 	mov	lr, lr, lsr #16
 	orr	r5, lr, r12, lsl #9
@@ -676,66 +676,58 @@ half_flat2:
 	beq	.Lhtq\sfx\()_x2
 	HTQPIX	1\sfx
 	subs	r6, r6, #1
-	beq	.Lhtq\sfx\()_xe
+	beq	.Lhtq\sfx\()_skip
 .Lhtq\sfx\()_x2:
 	HTQPIX	2\sfx
 	HTQPIX	3\sfx
 	subs	r6, r6, #2
 	bne	.Lhtq\sfx\()_x2
-.Lhtq\sfx\()_xe:
-	ldr	r0, [sp], #4
 .Lhtq\sfx\()_skip:
 	add	r12, r0, #16
-	ldmia	r12, {r1-r6}		@ (v0.4.77) w, u, v stepped: the fourth value is not this loop's
+	ldmia	r12, {r1, r2, r3, r5, r6, r8}	@ w, u, v stepped (v0.4.77: the fourth value is not this loop's)
 	add	r1, r1, r2
-	add	r3, r3, r4
-	add	r5, r5, r6
-	stmia	r12, {r1-r6}
+	add	r3, r3, r5
+	add	r6, r6, r8
+	stmia	r12, {r1, r2, r3, r5, r6, r8}
 	add	r12, r0, #80
-	ldmia	r12, {r1-r4}
-	ldr	r5, [r0, #104]
-	add	r1, r1, r5
-	add	r2, r2, r4, lsl #1
+	ldmia	r12, {r1, r2, r3, r5}		@ the colour row, the depth row, rows left, the width
+	ldr	r6, [r0, #104]
+	add	r1, r1, r6
+	add	r2, r2, r5, lsl #1
 	subs	r3, r3, #1
-	stmia	r12, {r1-r3}
+	stmia	r12, {r1, r2, r3}
 	bgt	.Lhtq\sfx\()_y
-	add	sp, sp, #4
 	ldmfd	sp!, {r4-r11, lr}
 	bx	lr
 	.endm
 	.global	half_texq1
 half_texq1:
 	stmfd	sp!, {r4-r11, lr}
-	ldr	r7, [r0, #68]
-	ldr	r8, [r0, #72]
-	mov	r12, r8, asr #7
-	mov	r7, r7, asr #7
-	add	r7, r7, r12, lsl #16
-	str	r7, [sp, #-4]!		@ the packed step, for every row of this call
 	@ (v0.4.77) the half wholly within xlo..xhi (its rows' ends at its first and last row, the edges being straight)?
 	@ then the rows without the clamps
 	ldr	r12, [r0, #88]
 	subs	r12, r12, #1
-	blt	.Lhtqc_y
-	ldmia	r0, {r1-r4}
+	blt	.Lhtqc_y0
+	ldmia	r0, {r1, r2, r3, r6}
 	mla	r5, r2, r12, r1
-	mla	r6, r4, r12, r3
-	ldr	r7, [r0, #108]
-	mov	r7, r7, lsl #16
-	sub	r7, r7, #0x7F00
-	sub	r7, r7, #0xFF
-	cmp	r1, r7
-	cmpge	r5, r7
-	blt	.Lhtqc_y
-	ldr	r7, [r0, #112]
-	add	r7, r7, #1
-	mov	r7, r7, lsl #16
-	sub	r7, r7, #0x7F00
-	sub	r7, r7, #0xFF
-	cmp	r3, r7
-	cmplt	r6, r7
-	bge	.Lhtqc_y
+	mla	r9, r6, r12, r3
+	ldr	r8, [r0, #108]
+	mov	r8, r8, lsl #16
+	sub	r8, r8, #0x7F00
+	sub	r8, r8, #0xFF
+	cmp	r1, r8
+	cmpge	r5, r8
+	blt	.Lhtqc_y0
+	ldr	r8, [r0, #112]
+	add	r8, r8, #1
+	mov	r8, r8, lsl #16
+	sub	r8, r8, #0x7F00
+	sub	r8, r8, #0xFF
+	cmp	r3, r8
+	cmplt	r9, r8
+	bge	.Lhtqc_y0
 	HTQROWS	n, 0
+.Lhtqc_y0:
 	HTQROWS	c, 1
 @ void half_flat1(HalfState*)
 	.global	half_texq2

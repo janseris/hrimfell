@@ -518,3 +518,10 @@ packed like half_tex1 (7.9 fixed), generated from its macros (HTQPIX/HTQROWS): 2
 cavern -3.6 %), texel edges a pixel over in places; (3) two hidden pixels from one depth word - worked out exactly
 (the whole word against w1 << 8 is a safe test for the upper one): 12 instructions for two against 6 + 6 now - no
 gain, not done. Since v0.4.75: 274.4 -> 269.8 M (-1.7 %) besides the cache-miss cut of v0.4.77.
+Nov 6 00:40 v0.4.79 (user: "do it" - the rows' state in registers): our pixel loop needs all 14 registers (the depth
+buffer), so the row state can't stay in registers as Maps 9300's does; what is the same for every row now does -
+r4 the depth step, r7 the packed texel step, r10 the palette, r11 the picture, loaded once a call - and the pixels'
+scratch is r8, so the state pointer r0 is no longer pushed and popped each row. half_tex1 and half_texq1 (generated
+from it): all scenes 269.8 -> 268.1 M (-0.6 %, -1.0..-1.4 % in the textured interiors and caves), the same pixels.
+Since v0.4.75: 274.4 -> 268.1 M (-2.3 %). Left: the perspective rows (persp_rows*) the same way; the row's own
+~50 instructions are now mostly its edges, its start values (3 mla) and the state's updates.
