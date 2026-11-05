@@ -510,4 +510,4 @@ TopAt/BlockedIn; lookups for other halls (their people, Forelhost's draugr) scan
 no grid made for them (made per question it thrashed). Misses a frame: Stronghold 172 -> 150 k, crypt 143 -> 104 k;
 pixels, tests, doors and the stuck probe unchanged. Left from Maps: the row loop without clamps for triangles wholly on
 the screen; TopAt's remaining misses (still 7-10 %: the props' and people's lookups in the drawn hall's squares).
-v0.4.77 + the dragon icon (aif/v11, from the user's make_dragon_below_icon.py: 25 x 20 and 64 x 50, 12-bit with 1-bit masks; built: bmconv work/aif.mbm /c12v11/icon25.bmp /1v11/icon25_mask.bmp /c12v11/icon64.bmp /1v11/icon64_mask.bmp, genaif -u 0x0E3D9301 work/spec.txt work/out.aif, copied to build/hrimfell.aif).
+v0.4.77 + the dragon icon (aif/v11, from the user's make_dragon_below_icon.py: 25 x 20 and 64 x 50, 16-bit (c16, as its notes ask) with 1-bit masks; built: bmconv work/aif.mbm /c16v11/icon25.bmp /1v11/icon25_mask.bmp /c16v11/icon64.bmp /1v11/icon64_mask.bmp, genaif -u 0x0E3D9301 work/spec.txt work/out.aif, copied to build/hrimfell.aif).
