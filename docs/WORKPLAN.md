@@ -511,3 +511,10 @@ no grid made for them (made per question it thrashed). Misses a frame: Stronghol
 pixels, tests, doors and the stuck probe unchanged. Left from Maps: the row loop without clamps for triangles wholly on
 the screen; TopAt's remaining misses (still 7-10 %: the props' and people's lookups in the drawn hall's squares).
 v0.4.77 + the dragon icon (aif/v11, from the user's make_dragon_below_icon.py: 25 x 20 and 64 x 50, 16-bit (c16, as its notes ask) with 1-bit masks; built: bmconv work/aif.mbm /c16v11/icon25.bmp /1v11/icon25_mask.bmp /c16v11/icon64.bmp /1v11/icon64_mask.bmp, genaif -u 0x0E3D9301 work/spec.txt work/out.aif, copied to build/hrimfell.aif).
+Nov 6 00:30 v0.4.78 (user: "do 1, 2, 3"): (1) half_tex1 / half_texq1 rows without the clamps when the half lies
+within xlo..xhi (checked once a call at its first and last row: the edges are straight), and the row's end steps w, u,
+v only (not the unused fourth): all scenes 272.2 -> 270.9 M, the same pixels; (2) half_texq1 (128 x 128 pictures)
+packed like half_tex1 (7.9 fixed), generated from its macros (HTQPIX/HTQROWS): 270.9 -> 269.8 M, caves most (sunlit
+cavern -3.6 %), texel edges a pixel over in places; (3) two hidden pixels from one depth word - worked out exactly
+(the whole word against w1 << 8 is a safe test for the upper one): 12 instructions for two against 6 + 6 now - no
+gain, not done. Since v0.4.75: 274.4 -> 269.8 M (-1.7 %) besides the cache-miss cut of v0.4.77.
