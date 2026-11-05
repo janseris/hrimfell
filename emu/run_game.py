@@ -122,7 +122,7 @@ def main():
                 if step >= 4: tot += e.count; n += 1
             tris = e.call('emu_tris', MEM)
             ins = tot // n
-            print('%-14s %7.2fM instr/frame  tris %4d  -> est. %4.1f fps on 9300 (2.5 cyc/instr + 5 ms copy)' % (names[sc], ins / 1e6, tris, 1e3 / (ins * 2.5 / 150e3 + 5)))
+            print('%-14s %7.2fM instr/frame  tris %4d  -> est. %4.1f fps on 9300 (3 cyc/instr + 5 ms copy)' % (names[sc], ins / 1e6, tris, 1e3 / (ins * 3.0 / 150e3 + 5)))
             if CACHEMAP:
                 tot_ = sum(e.mpage.values())
                 print('   misses by 16 KB page (last frame): ' + ', '.join('%x %d%%' % (pg << 14, 100 * c // tot_) for pg, c in sorted(e.mpage.items(), key=lambda x: -x[1])[:12]))

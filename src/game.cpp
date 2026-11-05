@@ -2464,8 +2464,13 @@ void Game::ReportTimes(int aRenderUs, int aBlitUs, int aFrameUs)
     // at 6 fps)
     if (aFrameUs > 0 && aFrameUs < 1000000)
         {
-        iFrames++; iFpsAccUs += aFrameUs;
-        if (iFpsAccUs >= 1000000) { iFps10 = iFrames * 10000000 / iFpsAccUs; iFrames = 0; iFpsAccUs = 0; }
+        iFrames++; iFpsAccUs += aFrameUs; iRenderAccUs += aRenderUs; iBlitAccUs += aBlitUs;
+        if (iFpsAccUs >= 1000000)
+            {
+            iFps10 = iFrames * 10000000 / iFpsAccUs;
+            iRenderAvgMs = iRenderAccUs / 1000 / iFrames; iBlitAvgMs = iBlitAccUs / 1000 / iFrames;
+            iFrames = 0; iFpsAccUs = 0; iRenderAccUs = 0; iBlitAccUs = 0;
+            }
         }
     // (v0.4.51) Auto speed (the menu: Off, 8 or 10 fps): the frames' time over a second and a half while playing (the
     // clock ticks 64 times a second - one frame's time is not to be trusted, their sum is); too slow, a step faster -

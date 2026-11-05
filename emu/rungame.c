@@ -304,8 +304,8 @@ int main(int argc, char** argv)
             }
         uint32_t tris = call("emu_tris", 1, MEM, 0, 0, 0);
         uint64_t ins = tot / n;
-        printf("%-14s %7.2fM instr/frame  tris %4u  -> est. %4.1f fps on 9300 (2.5 cyc/instr + 5 ms copy)\n",
-               s < (int)(sizeof KNames / sizeof KNames[0]) ? KNames[s] : "?", ins / 1e6, tris, 1e3 / (ins * 2.5 / 150e3 + 5));
+        printf("%-14s %7.2fM instr/frame  tris %4u  -> est. %4.1f fps on 9300 (3 cyc/instr + 5 ms copy)\n",
+               s < (int)(sizeof KNames / sizeof KNames[0]) ? KNames[s] : "?", ins / 1e6, tris, 1e3 / (ins * 3.0 / 150e3 + 5));
         if (cachemap)
             {
             uint64_t t = 0; int i, k, ord[12], no = 0;

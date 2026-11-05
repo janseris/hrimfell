@@ -514,7 +514,9 @@ int Game::LoadArea(const char* aName, int aLib)
     if (!iDataRead || !mem) return 0;
     const int cap = (aLib ? LIB_KB : AREA_KB) * 1024;
     int len = 0, n;
-    while (len < cap && (n = iDataRead(iDataCtx, aName, len, mem + len, cap - len < 65536 ? cap - len : 65536)) > 0) len += n;
+    // (v0.4.76) the whole file in one read where it can (the phone's reader opens, seeks, reads and closes the file each
+    // call: a 6 MB area in 64 KB pieces was ~95 of them - the MP4 player's lesson: big reads)
+    while (len < cap && (n = iDataRead(iDataCtx, aName, len, mem + len, cap - len)) > 0) len += n;
     const u8* b = mem;
     int ver = len >= 8 ? RdI(b + 4) : 0;
     if (len < 16 || b[0] != 'H' || b[1] != 'A' || b[2] != 'R' || b[3] != '1' || ver < 1 || ver > 3) return 0;

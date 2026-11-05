@@ -321,6 +321,7 @@ public:
     int iTitleUs;
     int iTimeUs;
     int iFps10, iFrames, iFpsAccUs, iRenderUs, iBlitUs;
+    int iRenderAccUs, iBlitAccUs, iRenderAvgMs, iBlitAvgMs;    // (v0.4.76) drawing and the copy to the screen, averaged (ms)
     int iAutoLevel, iAutoAccUs, iAutoN, iAutoGood;
     int iTalks;                                      // (v0.4.53) how many greetings: the next of a person's own lines   // (v0.4.51) Auto speed: steps taken (0..3), the frames measured
     int iDragonIdx;

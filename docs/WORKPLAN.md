@@ -493,3 +493,11 @@ pixel): -2 instructions a pixel, hidden or shown. All 41 scenes 274.4 -> 272.8 M
 edges a pixel apart in places (Gerdur's house against a wall: 1,671). Rows are short here (a few pixels), so what is
 done once a row decides: next, the same packing in the other textured rows (half_texq1, persp_rows*), and two hidden
 pixels a depth word.
+Nov 5 23:50: the MP4 player chat's lessons (user's attachment) checked against Hrimfell - already so: direct screen
+access from an even x, 2-pixel stores for the doubled width, no float, const tables (.data/.bss 0), a chunk heap, the
+loop on a CIdle (no 64 Hz timer snapping), auto speed with a gap between its switch points. Taken: (1) the emulator's
+fps estimate now 3 cycles an instruction (their phone: ~20 ns each; ours was 2.5 - estimates were ~15-20 % high);
+(2) an area file in one read (the phone's reader opened, sought, read and closed it every 64 KB: ~95 times for 6 MB);
+(3) Show FPS adds "d<ms> c<ms>": drawing and the copy to the screen, averaged over the second. OPEN: the copy is a full
+pass over the view (theirs: ~5 ms for 320 x 200) - drawing straight into the screen would save it but may show half-
+drawn frames (the sky, then walls, then things over them); decide from the phone's "c" figure.

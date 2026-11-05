@@ -823,7 +823,9 @@ void Game::DrawFps(int x0, int w)
         *p++ = '.'; *p++ = (char)('0' + fps10 % 10);
         p = r3d_puts(p, "fps ");
         p = r3d_puti(p, r.iTris);
-        r3d_puts(p, "t");
+        p = r3d_puts(p, "t");
+        // (v0.4.76) where a frame's time goes: drawing (d) and the copy to the screen (c), ms, over the last second
+        if (iFps10 > 0) { p = r3d_puts(p, " d"); p = r3d_puti(p, iRenderAvgMs); p = r3d_puts(p, " c"); p = r3d_puti(p, iBlitAvgMs); }
         int fy = iUi == UI_INV || iUi == UI_TRADE ? OUT_H - 36 : 16;         // (in the menus: under the preview)
         r.TextShadow(x0 + w - r.TextW(buf) - 3, fy, buf, C_GREEN);
         if (iRamTotalKB)
@@ -1332,7 +1334,7 @@ int Game::DetailRows(int aRow0, int aRows)
     if (r0 > iDetH - DET_ROWS) r0 = iDetH - DET_ROWS;
     if (r0 < 0) r0 = 0;
     int want = DET_ROWS * iDetW, got = 0, n;
-    while (got < want && (n = iDataRead(iDataCtx, "hrimfell_map.bin", 12 + 768 + r0 * iDetW + got, iDet + got, want - got > 65536 ? 65536 : want - got)) > 0) got += n;
+    while (got < want && (n = iDataRead(iDataCtx, "hrimfell_map.bin", 12 + 768 + r0 * iDetW + got, iDet + got, want - got)) > 0) got += n;
     if (got < iDetW) { iDetRow0 = -1; return 0; }
     iDetRow0 = r0;
     return 1;
