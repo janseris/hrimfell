@@ -484,3 +484,12 @@ prize here would be the hidden PIXELS (overdraw ~2.5, ~7 instructions each, and 
 which only that whole design removes: all of a frame's triangles bucketed by depth before any is drawn, coverage bits
 in place of the depth test in every span loop (ARM), the later passes (props, people, the view model) in the same
 buckets. A big rewrite - asked the user before starting.
+Nov 5 23:40 user: "I want more optimizations", pointed at janseris/maps9300 (cloned read-only to /home/claude/maps9300).
+Coverage bits instead of depth (Maps' design) rejected: its strict nearest-first order breaks on our big floor / wall /
+road triangles (a floor bucketed by its near end would hide whatever stands on it). Taken from Maps' r3dspan.c instead
+(v0.4.76): half_tex1 with the texel's two coordinates packed in one register (one add a pixel; 6.10 fixed each, 64 x 64
+pictures; the packed step once a call; rows start exact) and the colour store off the depth pointer (one pointer a
+pixel): -2 instructions a pixel, hidden or shown. All 41 scenes 274.4 -> 272.8 M (-0.6 %, up to -2.2 %); pixels: texel
+edges a pixel apart in places (Gerdur's house against a wall: 1,671). Rows are short here (a few pixels), so what is
+done once a row decides: next, the same packing in the other textured rows (half_texq1, persp_rows*), and two hidden
+pixels a depth word.

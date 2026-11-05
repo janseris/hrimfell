@@ -122,9 +122,33 @@ half_gouraud1:
 	ldmfd	sp!, {r4-r11, lr}
 	bx	lr
 @ void half_tex1(HalfState*)
+@ (v0.4.76) one pixel of half_tex1: its depth tested (hidden: the colour skipped), the texel from P (r5)
+	.macro	HT1PIX n
+	ldrh	r12, [r2], #2
+	cmp	r12, r3, asr #8
+	bge	.Lzf\n
+	mov	lr, r3, asr #8
+	strh	lr, [r2, #-2]
+	mov	r12, r5, lsr #26
+	and	r0, r5, #0xFC00
+	add	r12, r0, r12, lsl #16
+	ldrb	r12, [r11, r12, lsr #10]
+	mov	r12, r12, lsl #1
+	ldrh	r12, [r10, r12]
+	strh	r12, [r2, r1]
+.Lzf\n:
+	add	r3, r3, r4
+	add	r5, r5, r7
+	.endm
 	.global	half_tex1
 half_tex1:
 	stmfd	sp!, {r4-r11, lr}
+	ldr	r7, [r0, #68]
+	ldr	r8, [r0, #72]
+	mov	r12, r8, asr #6
+	mov	r7, r7, asr #6
+	add	r7, r7, r12, lsl #16
+	str	r7, [sp, #-4]!		@ the packed step, for every row of this call
 .Lht1_y:
 	ldmia	r0, {r1-r4}
 	add	r2, r1, r2
@@ -165,64 +189,28 @@ half_tex1:
 	ldr	r11, [r0, #96]
 	ldr	r10, [r0, #100]
 	str	r0, [sp, #-4]!
-	add	r12, r0, #64
-	ldmia	r12, {r4, r7, r8}
+	@ (v0.4.76, as Maps 9300's rows) the texel's two coordinates packed in one register, one add a pixel for both:
+	@ r5 = P, the row coordinate (r9, 16.16) in its top half and the column one (r5) in its bottom half, 6 whole
+	@ bits and 10 fraction bits each (64 x 64 pictures); a carry or borrow between the halves when the column
+	@ coordinate wraps moves the row one by 1/1024 texel. Each row starts from the exact values; the packed
+	@ step (r7) worked out once a call (at [sp, #4]). And one pointer: the colour store addresses off the depth
+	@ pointer (r1 = colour - depth - 2, a row's constant)
+	ldr	r4, [r0, #64]
+	ldr	r7, [sp, #4]
+	sub	r1, r1, r2
+	sub	r1, r1, #2
+	bic	r12, r9, #63
+	mov	lr, r5, lsl #10
+	mov	lr, lr, lsr #16
+	orr	r5, lr, r12, lsl #10
 	tst	r6, #1
 	beq	.Lht1_x2
-	ldrh	r12, [r2], #2
-	cmp	r12, r3, asr #8
-	bge	.Lzf1		@ (v0.4.70) hidden: skip the colour
-	mov	lr, r3, asr #8
-	strh	lr, [r2, #-2]
-	and	r12, r9, #0x3F0000
-	and	r0, r5, #0x3F0000
-	orr	r12, r12, r0, lsr #6
-	ldrb	r12, [r11, r12, lsr #10]
-	mov	r12, r12, lsl #1
-	ldrh	r12, [r10, r12]
-	strh	r12, [r1]
-.Lzf1:
-	add	r1, r1, #2
-	add	r3, r3, r4
-	add	r5, r5, r7
-	add	r9, r9, r8
+	HT1PIX	1
 	subs	r6, r6, #1
 	beq	.Lht1_xe
 .Lht1_x2:
-	ldrh	r12, [r2], #2
-	cmp	r12, r3, asr #8
-	bge	.Lzf2		@ (v0.4.70) hidden: skip the colour
-	mov	lr, r3, asr #8
-	strh	lr, [r2, #-2]
-	and	r12, r9, #0x3F0000
-	and	r0, r5, #0x3F0000
-	orr	r12, r12, r0, lsr #6
-	ldrb	r12, [r11, r12, lsr #10]
-	mov	r12, r12, lsl #1
-	ldrh	r12, [r10, r12]
-	strh	r12, [r1]
-.Lzf2:
-	add	r1, r1, #2
-	add	r3, r3, r4
-	add	r5, r5, r7
-	add	r9, r9, r8
-	ldrh	r12, [r2], #2
-	cmp	r12, r3, asr #8
-	bge	.Lzf3		@ (v0.4.70) hidden: skip the colour
-	mov	lr, r3, asr #8
-	strh	lr, [r2, #-2]
-	and	r12, r9, #0x3F0000
-	and	r0, r5, #0x3F0000
-	orr	r12, r12, r0, lsr #6
-	ldrb	r12, [r11, r12, lsr #10]
-	mov	r12, r12, lsl #1
-	ldrh	r12, [r10, r12]
-	strh	r12, [r1]
-.Lzf3:
-	add	r1, r1, #2
-	add	r3, r3, r4
-	add	r5, r5, r7
-	add	r9, r9, r8
+	HT1PIX	2
+	HT1PIX	3
 	subs	r6, r6, #2
 	bne	.Lht1_x2
 .Lht1_xe:
@@ -243,6 +231,7 @@ half_tex1:
 	subs	r3, r3, #1
 	stmia	r12, {r1-r3}
 	bgt	.Lht1_y
+	add	sp, sp, #4
 	ldmfd	sp!, {r4-r11, lr}
 	bx	lr
 @ void half_flat1(HalfState*)
