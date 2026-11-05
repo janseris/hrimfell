@@ -3177,6 +3177,18 @@ face_shade:
 	.global	\name
 \name:
 	stmfd	sp!, {r4-r11, lr}
+	@ (v0.4.81) what is the same for every row of the call into the walker's context once (was once a row): the
+	@ depth's step, the texel steps, the picture, the palette
+	ldr	r5, [r0, #64]
+	str	r5, [r1, #16]
+	ldr	r5, [r0, #68]
+	str	r5, [r1, #28]
+	ldr	r5, [r0, #72]
+	str	r5, [r1, #32]
+	ldr	r5, [r0, #96]
+	str	r5, [r1, #44]
+	ldr	r5, [r0, #100]
+	str	r5, [r1, #48]
 	str	r1, [sp, #-4]!
 	str	r0, [sp, #-4]!
 4:
@@ -3260,7 +3272,6 @@ face_shade:
 	orr	r6, r6, r7, lsl #15
 	str	r6, [lr, #60]
 	ldr	r5, [r0, #64]
-	str	r5, [lr, #16]
 	cmp	r5, #0
 	rsblt	r5, r5, #0
 	mov	r6, r9, asr #2
@@ -3273,14 +3284,6 @@ face_shade:
 	movgt	r7, #64
 2:
 	str	r7, [lr, #36]
-	ldr	r5, [r0, #68]
-	str	r5, [lr, #28]
-	ldr	r5, [r0, #72]
-	str	r5, [lr, #32]
-	ldr	r5, [r0, #96]
-	str	r5, [lr, #44]
-	ldr	r5, [r0, #100]
-	str	r5, [lr, #48]
 	mov	r12, #0
 	str	r12, [lr, #52]
 5:

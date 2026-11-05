@@ -1,6 +1,6 @@
 ; Hrimfell - an open-world Nordic action RPG for the Nokia 9300
 &EN
-#{"Hrimfell"},(0x0E3D9301),0,4,80
+#{"Hrimfell"},(0x0E3D9301),0,4,81
 (0x101F8ED2), 0, 0, 0, {"Series80ProductID"}
 "../build/hrimfell.app"-"C:\system\apps\hrimfell\hrimfell.app"
 "../build/hrimfell.rsc"-"C:\system\apps\hrimfell\hrimfell.rsc"

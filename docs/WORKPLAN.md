@@ -530,3 +530,8 @@ the two texel coordinates in one register from each segment's exact start (16 - 
 PRPIX), the colour store off the depth pointer, two pixels a turn. All scenes 268.1 -> 265.5 M (-1.0 %; the Hall of
 the Dead -4.2 %, the catacombs -4.4 %, the trader -2.6 %); single texels a pixel over inside textures. The cutout
 segments (key: leaves, webs) keep their conditional loop. Since v0.4.75: 274.4 -> 265.5 M (-3.2 %).
+Nov 6 00:55 v0.4.81: PERSPROWS writes the call's constant values (the depth step, the texel steps, the picture, the
+palette) into the walker's context once a call instead of once a row: 265.5 -> 264.9 M, the same pixels. A
+perspective call is ~6 short rows: ~100 instructions of row set-up and ~60 a segment against ~120 of pixels a row.
+What is left there is register-bound (the row pointers saved and reloaded round each segment's set-up, which uses
+every register). Since v0.4.75: 274.4 -> 264.9 M (-3.5 %), and v0.4.77's cache misses -13..-27 % in Forelhost.
