@@ -392,3 +392,5 @@ extern "C" void emu_view(u8* mem, int v) { Game* g = (Game*)mem; g->iS.view = v;
 extern "C" void emu_bench_start(u8* mem) { ((Game*)mem)->BenchStart(); }
 extern "C" int emu_bench_frame(u8* mem, int r, int b, int f) { Game* g = (Game*)mem; g->ReportTimes(r, b, f); return g->iBench != 0; }
 extern "C" int emu_bench_log(u8* mem, int which) { Game* g = (Game*)mem; return which ? g->iBenchLen : (int)g->iBenchLog; }
+// (v0.4.83) the menu's Brightness (0 Normal .. 3 Brightest)
+extern "C" void emu_gamma(u8* mem, int aG) { Game* g = (Game*)mem; g->iS.gamma = aG & 3; g->iR->SetGamma(aG & 3); }

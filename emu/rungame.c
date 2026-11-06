@@ -93,6 +93,17 @@ static void rd(uc_engine* u, uc_mem_type t, uint64_t addr, int size, int64_t val
         }
     int v = clru[st]; ctag[st][v] = tg; clru[st] = 1 - v;
     }
+/* (v0.4.83) the writes: a line not in the cache isn't brought in (no write-allocate) - the store goes out through the
+   write buffer (~63 MB/s on the phone); counted, with their bytes */
+static uint64_t writes, wmiss, wbytes; static uint64_t* fwb;    /* (CACHEMAP) bytes by function */
+static void wr(uc_engine* u, uc_mem_type t, uint64_t addr, int size, int64_t val, void* ud)
+    {
+    writes++;
+    uint64_t line = addr >> 4; int st = line & 255; int64_t tg = (int64_t)(line >> 8);
+    if (ctag[st][0] == tg || ctag[st][1] == tg) return;
+    wmiss++; wbytes += size;
+    if (fwb) { uint32_t pc; uc_reg_read(u, UC_ARM_REG_PC, &pc); int f = fnof(pc); if (f >= 0) fwb[f] += size; }
+    }
 /* (ALIGN=all|ui: emu/check_align_*.py) the reads and writes of 2 or 4 bytes not on their own alignment - which the
    9300's ARM9 does not do as the PC does: where (function, pc, size) and how often */
 typedef struct { int f; uint32_t pc; int size; uint64_t n; } Hit;
@@ -222,7 +233,7 @@ int main(int argc, char** argv)
       uc_mem_write(uc, bat, bfb, nbf); uc_mem_write(uc, cat, lib, nlib); uc_mem_write(uc, wat, wr, nwr); uc_mem_write(uc, fat, fh, nfh);
       uc_mem_write(uc, LAND + 64, land, nl); uc_mem_write(uc, aat, area, na); uc_mem_write(uc, iat, items, ni);
       free(land); free(area); free(items); free(bfb); free(lib); free(wr); free(fh); }
-    if (cachemap) { nmpage = (int)(0x08000000 >> 14); mpage = calloc(nmpage, 8); fmiss = calloc(nfns, 8); }
+    if (cachemap) { nmpage = (int)(0x08000000 >> 14); mpage = calloc(nmpage, 8); fmiss = calloc(nfns, 8); fwb = calloc(nfns, 8); }
     { int i, j; for (i = 0; i < 256; i++) ctag[i][0] = ctag[i][1] = -1; (void)j; }
     const char* align = getenv("ALIGN");
     if (align)
@@ -272,6 +283,7 @@ int main(int argc, char** argv)
     int mode = getenv("MODE") ? atoi(getenv("MODE")) : 0;
     call("emu_mode", 2, MEM, mode, 0, 0);
     if (getenv("VIEW")) call("emu_view", 2, MEM, atoi(getenv("VIEW")), 0, 0);
+    if (getenv("GAMMA")) call("emu_gamma", 2, MEM, atoi(getenv("GAMMA")), 0, 0);      /* (v0.4.83) the Brightness setting */
     if (getenv("OCC")) call("emu_occ", 2, MEM, atoi(getenv("OCC")), 0, 0);
     if (getenv("SKIP")) call("emu_skip", 2, MEM, atoi(getenv("SKIP")), 0, 0);
     if (getenv("TEXMIP")) call("emu_texmip", 2, MEM, atoi(getenv("TEXMIP")), 0, 0);
@@ -308,17 +320,19 @@ int main(int argc, char** argv)
         for (step = 0; step < 12; step++)
             {
             if (prof && step == 4) { memset(fprof, 0, nfns * 8); memset(fcalls, 0, nfns * 8); nb = 0; }
-            uc_hook hk = 0; int on = 0;
+            uc_hook hk = 0, hw = 0; int on = 0;
             if (cache && step >= 10)
                 {
                 miss = 0; reads = 0;
                 if (cachemap) { memset(mpage, 0, nmpage * 8); memset(fmiss, 0, nfns * 8); }
                 uc_hook_add(uc, &hk, UC_HOOK_MEM_READ, (void*)rd, 0, 1, 0); on = 1;
+                writes = wmiss = wbytes = 0; if (fwb) memset(fwb, 0, nfns * 8);
+                uc_hook_add(uc, &hw, UC_HOOK_MEM_WRITE, (void*)wr, 0, 1, 0);
                 uc_ctl_remove_cache(uc, CODE, CODE + 0x400000);
                 }
             call("emu_tick", 3, MEM, 66000, 0, 0);
             call("emu_render", 2, MEM, FB, 0, 0);
-            if (on) { uc_hook_del(uc, hk); uc_ctl_remove_cache(uc, CODE, CODE + 0x400000); cm += miss; cn++; }
+            if (on) { uc_hook_del(uc, hk); uc_hook_del(uc, hw); uc_ctl_remove_cache(uc, CODE, CODE + 0x400000); cm += miss; cn++; }
             if (step >= 4) { tot += count; n++; }
             }
         uint32_t tris = call("emu_tris", 1, MEM, 0, 0, 0);
@@ -379,6 +393,17 @@ int main(int argc, char** argv)
             uint64_t mf = cm / (cn ? cn : 1);
             printf("               data cache: %llu misses a frame (%.1f%% of %llu reads) -> est. %4.1f fps with them (%d cycles each, 1.5 cyc/instr)\n",
                    (unsigned long long)mf, 100.0 * mf / (reads ? reads : 1), (unsigned long long)reads, 1e3 / ((ins * 1.5 + mf * misscyc) / 150e3 + 5), misscyc);
+            printf("               writes (last frame): %llu, %llu past the cache = %llu KB (%.1f ms at 63 MB/s)\n",
+                   (unsigned long long)writes, (unsigned long long)wmiss, (unsigned long long)(wbytes >> 10), wbytes / 63e3);
+            if (fwb)
+                {
+                int i, m = 0; static int fo[65536];
+                for (i = 0; i < nfns; i++) if (fwb[i]) fo[m++] = i;
+                sortkey = fwb; qsort(fo, m, sizeof(int), bykey);
+                printf("               written past the cache, by function: ");
+                for (i = 0; i < m && i < 10; i++) printf("%s%s %lluK", i ? ", " : "", fns[fo[i]].n, (unsigned long long)(fwb[fo[i]] >> 10));
+                printf("\n");
+                }
             }
         uc_mem_read(uc, FB, px, sizeof px);
         { char fn[256]; snprintf(fn, sizeof fn, OUT "/scene%d.png", s); save_png(fn, px); }

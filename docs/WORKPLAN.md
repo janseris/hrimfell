@@ -557,3 +557,16 @@ sis/hrimfell_data.pkg (UID 0x0E3D9302, 20 MB: skyrim_data.sis) the data - sent o
 install: skyrim.sis, then skyrim_data.sis (the upgrade removes the old package's data).
 Release step from now on: makesis both when data/ changed, else only hrimfell.pkg; send skyrim.sis (and
 skyrim_data.sis when it changed).
+Nov 7 00:45 the MP4 Player chat's drawing-speed notes (the user's FOR-HRIMFELL-drawing-speed.md), measured
+(emulator, the user's settings, travel places): rungame now counts the writes past the cache (CACHE=1: their
+bytes and the ms at the phone's ~63 MB/s; CACHEMAP=1: by function) and takes GAMMA=0..3 (the Brightness setting).
+- The back buffer + Mem::Copy: right, kept (c ~5 ms on the phone).
+- Brightness (ApplyGamma, 128 KB table): off at Normal (the user's - the default). Brighter costs +0.35 M
+  instructions and +11 k read misses a frame (~10 ms, ~5 %): if the user ever plays brighter, put the curve into
+  the palettes/colours instead (0 a frame).
+- Writes past the cache: 555-840 KB a frame (9-14 ms at 63 MB/s), mostly overlapped with the work (the 3 cycles an
+  instruction estimate matches the phone with them). The one pure write stream: fill32 250 KB (the sky's fill
+  125 KB + ClearZ 125 KB at 320x200), ~4 ms a frame. Alternating depth ranges would save ClearZ's ~2 ms (1-3 %)
+  but needs both compare directions in every span loop: NOT done. Then xform_v (TV 40 bytes a vertex: 97 KB in
+  Riverwood's street) - a smaller TV would cut both its writes and the read misses after; a big change, later.
+- Info notes: the game shows none of the phone's; StartDirect is tried every frame: right already.
