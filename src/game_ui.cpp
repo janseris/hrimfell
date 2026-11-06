@@ -816,6 +816,16 @@ void Game::DrawFps(int x0, int w)
     {
     R3D& r = *iR;
     char buf[64];
+    if (iBench)
+        {
+        // (v0.4.82) the benchmark's progress, top left
+        int t;
+        char* q = r3d_puts(buf, "BENCHMARK ");
+        q = r3d_puti(q, iBench); q = r3d_puts(q, "/"); q = r3d_puti(q, BenchCount());
+        r3d_puts(q, iBenchPhase == 3 ? " measuring - Esc: stop" : " - Esc: stop");
+        r.TextShadow(x0 + 3, 3, buf, C_GOLD);
+        r.TextShadow(x0 + 3, 13, BenchName(iBench - 1, &t), C_WHITE);
+        }
     if (ShowFps)
         {
         int fps10 = iFps10 > 0 ? iFps10 : (iRenderUs + iBlitUs > 0 ? 10000000 / (iRenderUs + iBlitUs) : 0);
@@ -1007,7 +1017,7 @@ int GameViewTex(int v);
 int GameViewFull(int v);
 int GameViewMiddle(int v);
 int GameFullDist(int v, int aBase);
-static const char* const KMenu[21] = { "Resume", "Save Game", "Load Game", "Controls", "Display", "Brightness", "Draw distance", "Far land", "Textures", "Plants", "Full models", "Middle models", "Rows", "Near land", "Small things", "Auto speed", "Show FPS", "Travel (testing)", "New Game", "Update from server", "Quit" };
+static const char* const KMenu[22] = { "Resume", "Save Game", "Load Game", "Controls", "Display", "Brightness", "Draw distance", "Far land", "Textures", "Plants", "Full models", "Middle models", "Rows", "Near land", "Small things", "Auto speed", "Show FPS", "Travel (testing)", "Benchmark (send to PC)", "New Game", "Update from server", "Quit" };
 static const char* const KGammaNm[4] = { "Normal", "Bright", "Brighter", "Brightest" };
 static const char* const KModeNm[4] = { "320x200", "400x200", "640x200", "640x200 (2x)" };
 
@@ -1022,8 +1032,8 @@ void Game::DrawMenu(int x0, int w)
     r3d_puts(p, QuestText());
     r.Text(cx - r.TextW(buf) / 2, 36, buf, C_GREY);
     int i;
-    // (v0.4.58) 21 entries, 16 shown: the list scrolls with the choice
-    int top = iMenuSel - 13; if (top < 0) top = 0; if (top > 21 - 16) top = 21 - 16;
+    // (v0.4.58) 22 entries (v0.4.82), 16 shown: the list scrolls with the choice
+    int top = iMenuSel - 13; if (top < 0) top = 0; if (top > 22 - 16) top = 22 - 16;
     for (i = top; i < top + 16; i++)
         {
         p = r3d_puts(buf, KMenu[i]);

@@ -276,6 +276,25 @@ int main(int argc, char** argv)
     if (getenv("SKIP")) call("emu_skip", 2, MEM, atoi(getenv("SKIP")), 0, 0);
     if (getenv("TEXMIP")) call("emu_texmip", 2, MEM, atoi(getenv("TEXMIP")), 0, 0);
     if (getenv("ITEM")) call("emu_item", 2, MEM, atoi(getenv("ITEM")), 0, 0);
+    if (getenv("BENCH"))
+        {
+        /* (v0.4.82) the menu's benchmark, a frame's time from its instructions (3 cycles each at 150 MHz) */
+        int fr, r = 100000, bl = 5000, run = 1;
+        call("emu_bench_start", 1, MEM, 0, 0, 0);
+        for (fr = 0; fr < 40000 && run; fr++)
+            {
+            run = call("emu_bench_frame", 4, MEM, r, bl, r + bl);
+            call("emu_tick", 3, MEM, r + bl, 0, 0);
+            uint64_t c1 = count;
+            call("emu_render", 2, MEM, FB, 0, 0);
+            r = (int)((c1 + count) / 50);
+            }
+        uint32_t la = call("emu_bench_log", 2, MEM, 0, 0, 0), ln = call("emu_bench_log", 2, MEM, 1, 0, 0);
+        static char lg[20000]; if (ln > sizeof lg - 1) ln = sizeof lg - 1;
+        uc_mem_read(uc, la, lg, ln); lg[ln] = 0;
+        printf("%s(%d frames)\n", lg, fr);
+        return 0;
+        }
     int sc[256], nsc = 0;
     if (getenv("SC")) { char* s = strdup(getenv("SC")); char* t; for (t = strtok(s, ","); t && nsc < 256; t = strtok(0, ",")) sc[nsc++] = atoi(t); }
     else for (nsc = 0; nsc < 11; nsc++) sc[nsc] = nsc;
@@ -284,7 +303,7 @@ int main(int argc, char** argv)
     for (si = 0; si < nsc; si++)
         {
         int s = sc[si], step, n = 0, cn = 0; uint64_t tot = 0, cm = 0;
-        call("emu_scene", 2, MEM, s, 0, 0);
+        { uint64_t c0 = count; call("emu_scene", 2, MEM, s, 0, 0); if (getenv("LOADI")) printf("scene %d set-up: %.1fM instructions\n", s, (count - c0) / 1e6); }
         if (prof) { memset(fprof, 0, nfns * 8); memset(fcalls, 0, nfns * 8); }
         for (step = 0; step < 12; step++)
             {

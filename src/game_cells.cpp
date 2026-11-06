@@ -1385,6 +1385,161 @@ void Game::TeleInput()
     if (Pressed(KEY_FIRE)) Teleport(iTeleSel);
     }
 
+// ---------------------------------------------------------------- the benchmark (v0.4.82)
+// The travel list's places in its order (each area's together: a file read per area), and the Windmill again facing
+// Whiterun (the city across the plains: the heaviest view). Each: the move (with its loading time when an area file is
+// read), 1.5 s to settle, then 3 s measured: frames, the time a frame (fps), its drawing (d, the game's own work
+// included) and its copy to the screen (c), the triangles - average, least, most. Where the player stood is logged
+// too, so the emulator can take the same view.
+int GameViewNear(int v); int GameViewFar(int v); int GameViewTex(int v); int GameViewFull(int v); int GameViewMiddle(int v);
+enum { BENCH_FACE_WR = 100, BENCH_SETTLE_US = 1500000, BENCH_MEASURE_US = 3000000 };
+static const u8 KBenchExtra = 6;            // after this place: itself again, facing Whiterun
+int Game::BenchCount() const { return NTRAVEL + 1; }
+const char* Game::BenchName(int aStep, int* aTravel)
+    {
+    int t = aStep <= KBenchExtra ? aStep : aStep - 1, face = aStep == KBenchExtra + 1;
+    *aTravel = t + (face ? BENCH_FACE_WR : 0);
+    TravelSpot sp;
+    if (!Travel(*this, t, sp)) return "?";
+    return face ? "Windmill, facing Whiterun" : sp.name;
+    }
+void Game::BenchPut(const char* aS)
+    {
+    while (*aS && iBenchLen < BENCH_LOG - 1) iBenchLog[iBenchLen++] = *aS++;
+    iBenchLog[iBenchLen] = 0;
+    }
+// a number right-aligned in aWidth characters
+void Game::BenchNum(int aV, int aWidth)
+    {
+    char b[16];
+    char* e = r3d_puti(b, aV);
+    int n = (int)(e - b);
+    while (n++ < aWidth) BenchPut(" ");
+    BenchPut(b);
+    }
+// a time in microseconds as milliseconds with one decimal
+static char* PutMs(char* p, int aUs)
+    {
+    int t = (aUs + 50) / 100;
+    p = r3d_puti(p, t / 10); *p++ = '.'; *p++ = (char)('0' + t % 10); *p = 0;
+    return p;
+    }
+void Game::BenchStart()
+    {
+    iBenchLen = 0; iBenchLog[0] = 0;
+    BenchPut("=== Hrimfell " HRIMFELL_VERSION " benchmark ===\n");
+    char b[160];
+    char* p = r3d_puts(b, "settings: display "); p = r3d_puti(p, iS.outMode & 3);
+    p = r3d_puts(p, " (0 320x200, 1 400x200, 2 640x200, 3 640x200 2x), draw distance "); p = r3d_puti(p, GameViewNear(iS.view));
+    p = r3d_puts(p, " m, far land "); p = r3d_puti(p, GameViewFar(iS.view));
+    p = r3d_puts(p, " m, textures "); p = r3d_puti(p, GameViewTex(iS.view)); r3d_puts(p, " m,\n");
+    BenchPut(b);
+    p = r3d_puts(b, "  plants "); p = r3d_puts(p, (iS.view >> 9) & 1 ? "off" : "on");
+    p = r3d_puts(p, ", full models "); p = r3d_puti(p, GameViewFull(iS.view));
+    p = r3d_puts(p, " m, middle models "); p = r3d_puti(p, GameViewMiddle(iS.view));
+    p = r3d_puts(p, " m, rows "); p = r3d_puts(p, (iS.view >> 16) & 1 ? "half" : "full");
+    p = r3d_puts(p, ", near land "); p = r3d_puts(p, (iS.view >> 17) & 1 ? "flat" : "smooth");
+    p = r3d_puts(p, ", small things "); p = r3d_puts(p, (iS.view >> 18) & 1 ? "only near" : "all");
+    p = r3d_puts(p, ", auto speed "); p = r3d_puti(p, (iS.view >> 19) & 3); r3d_puts(p, " (off for the test)\n");
+    BenchPut(b);
+    p = r3d_puts(b, "  view bits "); p = r3d_puti(p, iS.view);
+    p = r3d_puts(p, " (emulator VIEW=), brightness "); p = r3d_puti(p, iS.gamma & 3);
+    p = r3d_puts(p, "; RAM free "); p = r3d_puti(p, iRamFreeKB);
+    p = r3d_puts(p, " KB of "); p = r3d_puti(p, iRamTotalKB);
+    p = r3d_puts(p, ", the game "); p = r3d_puti(p, iRamUsedKB); r3d_puts(p, " KB\n");
+    BenchPut(b);
+    BenchPut("each place: load ms (an area file read; - none), then over 3 s after 1.5 s to settle: frames, fps,\n"
+             "triangles avg (min-max), d = a frame's game work + drawing ms avg (min-max), c = the copy to the screen\n"
+             "ms avg (max), the slowest frame ms; then where: cell x z y yaw pitch (game units), the game's hour\n\n");
+    iBenchView = iS.view;
+    iS.view &= ~(3 << 19); iAutoLevel = 0; ApplyViewSetting();
+    iBench = 1; iBenchPhase = 0; iBenchTotalUs = 0;
+    iUi = UI_PLAY;
+    }
+void Game::BenchStop(const char* aWhy)
+    {
+    if (!iBench) return;
+    char b[96];
+    char* p = r3d_puts(b, "\n=== ");
+    p = r3d_puts(p, aWhy); p = r3d_puts(p, " after ");
+    p = r3d_puti(p, iBenchTotalUs / 1000000); r3d_puts(p, " s ===\n");
+    BenchPut(b);
+    iBench = 0;
+    iS.view = iBenchView; ApplyViewSetting();
+    iRequest = 5;
+    }
+// once a frame, from ReportTimes (the frame before this one: its drawing, its copy, its whole time)
+void Game::BenchFrame(int aRenderUs, int aBlitUs, int aFrameUs)
+    {
+    if (!iBench) return;
+    if (aFrameUs > 0) iBenchTotalUs += aFrameUs;
+    int step = iBench - 1, t;
+    if (iUi == UI_DEAD) { BenchPut("  (died here)\n"); Respawn(); }
+    if (iUi != UI_PLAY && iUi != UI_DEAD) iUi = UI_PLAY;     // (a book or a talk opened by itself: closed)
+    switch (iBenchPhase)
+        {
+        case 0:
+            BenchName(step, &t);
+            Teleport(t % BENCH_FACE_WR);
+            iBenchPhase = 1; iBenchUs = 0; iBenchLoaded = 0;
+            return;
+        case 1:
+            iBenchUs += aFrameUs;
+            if (iLoadPhase) { iBenchLoaded = 1; return; }
+            // (this report's frame was the one that read the file)
+            iBenchLoadUs = iBenchUs;
+            BenchName(step, &t);
+            if (t >= BENCH_FACE_WR)
+                {
+                int cx = CITY_CX * CELL + CELL / 2, cz = CITY_CZ * CELL + CELL / 2;
+                iS.yaw = r3d_atan2(cx - iS.px, cz - iS.pz) & 1023;
+                }
+            iS.drawn = 0; iDrawUs = 0; iS.pitch = 0;
+            iBenchPhase = 2; iBenchUs = 0;
+            return;
+        case 2:
+            iBenchUs += aFrameUs;
+            if (iBenchUs < BENCH_SETTLE_US) return;
+            iBenchPhase = 3; iBenchUs = 0;
+            iBenchN = 0; iBenchTris = 0; iBenchTrisMin = 0x7fffffff; iBenchTrisMax = 0;
+            iBenchR = 0; iBenchRMin = 0x7fffffff; iBenchRMax = 0; iBenchB = 0; iBenchBMax = 0; iBenchF = 0; iBenchFMax = 0;
+            return;
+        case 3:
+            {
+            int tr = iR->iTris;
+            iBenchN++; iBenchUs += aFrameUs; iBenchF += aFrameUs; iBenchR += aRenderUs; iBenchB += aBlitUs; iBenchTris += tr;
+            if (tr < iBenchTrisMin) iBenchTrisMin = tr;
+            if (tr > iBenchTrisMax) iBenchTrisMax = tr;
+            if (aRenderUs < iBenchRMin) iBenchRMin = aRenderUs;
+            if (aRenderUs > iBenchRMax) iBenchRMax = aRenderUs;
+            if (aBlitUs > iBenchBMax) iBenchBMax = aBlitUs;
+            if (aFrameUs > iBenchFMax) iBenchFMax = aFrameUs;
+            if (iBenchUs < BENCH_MEASURE_US) return;
+            int n = iBenchN;
+            char b[200];
+            char* p = r3d_puti(b, step + 1); p = r3d_puts(p, ". ");
+            p = r3d_puts(p, BenchName(step, &t));
+            r3d_puts(p, "\n   load ");
+            BenchPut(b);
+            if (iBenchLoaded) { PutMs(b, iBenchLoadUs); BenchPut(b); } else BenchPut("-");
+            BenchPut("  frames "); BenchNum(n, 0);
+            int fps100 = n * 1000000 / (iBenchF / 100 > 0 ? iBenchF / 100 : 1);      // (no 64-bit division on the phone)
+            p = r3d_puts(b, "  fps "); p = r3d_puti(p, fps100 / 100); *p++ = '.'; *p++ = (char)('0' + fps100 / 10 % 10); *p++ = (char)('0' + fps100 % 10); *p = 0;
+            BenchPut(b);
+            BenchPut("  tris "); BenchNum(iBenchTris / n, 0); BenchPut(" ("); BenchNum(iBenchTrisMin, 0); BenchPut("-"); BenchNum(iBenchTrisMax, 0); BenchPut(")");
+            p = r3d_puts(b, "  d "); p = PutMs(p, iBenchR / n); p = r3d_puts(p, " ("); p = PutMs(p, iBenchRMin); p = r3d_puts(p, "-"); p = PutMs(p, iBenchRMax);
+            p = r3d_puts(p, ")  c "); p = PutMs(p, iBenchB / n); p = r3d_puts(p, " ("); p = PutMs(p, iBenchBMax);
+            p = r3d_puts(p, ")  slowest "); p = PutMs(p, iBenchFMax); r3d_puts(p, "\n   at ");
+            BenchPut(b);
+            BenchNum(iS.cell, 0); BenchPut(" "); BenchNum(iS.px, 0); BenchPut(" "); BenchNum(iS.pz, 0); BenchPut(" "); BenchNum(iS.py, 0);
+            BenchPut(" "); BenchNum(iS.yaw, 0); BenchPut(" "); BenchNum(iS.pitch, 0); BenchPut("  hour "); BenchNum(iS.timeOfDay / 60000, 0); BenchPut("\n");
+            if (step + 1 >= BenchCount()) { BenchStop("done"); return; }
+            iBench++; iBenchPhase = 0;
+            return;
+            }
+        }
+    }
+
 static const u16 KGold = 0xFEA0, KWhite = 0xFFFF, KGrey = 0xA514;
 
 void Game::DrawTele(int x0, int w)

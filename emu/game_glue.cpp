@@ -52,6 +52,13 @@ static int g_emuItem;
 extern "C" void emu_scene(u8* mem, int s)
     {
     Game* g = (Game*)mem;
+    if (s >= 100)
+        {
+        // (v0.4.81) the travel list's place s - 100 (200+: then facing Whiterun's middle), as on the phone
+        g->Teleport(s % 100); g->iFadeUs = 0; g->iS.pitch = 0;
+        if (s >= 200) { int cx = CITY_CX * CELL + CELL / 2, cz = CITY_CZ * CELL + CELL / 2; g->iS.yaw = r3d_atan2(cx - g->iS.px, cz - g->iS.pz) & 1023; }
+        return;
+        }    // (v0.4.81) the travel list's place s - 100, as the phone's
     int x = 62 * CELL, z = 38 * CELL, tx = 62 * CELL, tz = 46 * CELL, pitch = -20;
     if (s == 1) { x = 40 * CELL; z = 22 * CELL; tx = 40 * CELL; tz = 30 * CELL; }
     if (s == 2) { x = 100 * CELL - 8 * METER; z = 40 * CELL - 10 * METER; tx = 100 * CELL; tz = 40 * CELL; }
@@ -379,3 +386,9 @@ extern "C" void emu_texmip(u8* mem, int v) { Game* g = (Game*)mem; g->iR->iTexMi
 extern "C" void emu_occ(u8* mem, int v) { Game* g = (Game*)mem; g->iR->iOccEvery = v; }
 extern "C" void emu_skip(u8* mem, int v) { Game* g = (Game*)mem; g->iR->iSkip = v; }
 extern "C" void emu_view(u8* mem, int v) { Game* g = (Game*)mem; g->iS.view = v; g->ApplyViewSetting(); }
+
+// (v0.4.82) the benchmark as on the phone: started, then a frame at a time with the frame's times as the phone's app
+// gives them; 1 while it runs; the log's address and length
+extern "C" void emu_bench_start(u8* mem) { ((Game*)mem)->BenchStart(); }
+extern "C" int emu_bench_frame(u8* mem, int r, int b, int f) { Game* g = (Game*)mem; g->ReportTimes(r, b, f); return g->iBench != 0; }
+extern "C" int emu_bench_log(u8* mem, int which) { Game* g = (Game*)mem; return which ? g->iBenchLen : (int)g->iBenchLog; }

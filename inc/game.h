@@ -158,6 +158,7 @@ struct GameState
     u8 dun[64];
     };
 enum { SAVE_VERSION = 19 };
+#define HRIMFELL_VERSION "0.4.82"
 // the world map's width in pixels (its picture, Game::BuildMapImage)
 enum { MAPW = 256 };
 // the places with a marker on the map and compass (Skyrim's map markers): their kinds
@@ -274,7 +275,7 @@ public:
     void Render(u16* aOut, int aStride);
     void RenderFrame(u16* aOut, int aStride);
     // save/load: the platform reads/writes iS (sizeof(GameState)) when iRequest is set
-    int  iRequest;      // 0 none, 1 save, 2 load, 3 quit
+    int  iRequest;      // 0 none, 1 save, 2 load, 3 quit, 4 update, 5 the benchmark's log to save and send
     void SaveDone(int aOk);
     void LoadDone(int aOk);
     int  ShowFps;
@@ -538,6 +539,21 @@ public:
     void Go(int aCell, int aX, int aZ, int aYaw, int aFeet = 0x7fffffff);
     int  DeferLoad(int aKind, int a0 = 0, int a1 = 0, int a2 = 0, int a3 = 0, int a4 = 0);
     void DoPendingLoad();
+    // (v0.4.82) the benchmark (menu: Benchmark): every travel place in turn - loaded, left to settle, measured - one
+    // line each into iBenchLog; when done (or stopped by Esc) iRequest 5: the platform saves the log and sends it to
+    // the PC. The player doesn't move meanwhile, the weapon sheathed, Auto speed off (put back after)
+    enum { BENCH_LOG = 16384 };
+    int iBench, iBenchPhase, iBenchUs, iBenchLoadUs, iBenchLoaded, iBenchView;
+    int iBenchN, iBenchTris, iBenchTrisMin, iBenchTrisMax, iBenchR, iBenchRMin, iBenchRMax, iBenchB, iBenchBMax, iBenchF, iBenchFMax;
+    int iBenchLen, iBenchTotalUs;
+    char iBenchLog[BENCH_LOG];
+    void BenchStart();
+    void BenchFrame(int aRenderUs, int aBlitUs, int aFrameUs);
+    void BenchStop(const char* aWhy);
+    void BenchPut(const char* aS);
+    void BenchNum(int aV, int aWidth);
+    int  BenchCount() const;
+    const char* BenchName(int aStep, int* aTravel);
     void DrawLoading(u16* aOut, int aStride);
     void LoadFinish();
     int iFhKit;                        // (v0.4.68) Forelhost's file is there (data/forelhost.har)

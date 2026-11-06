@@ -1975,6 +1975,7 @@ void Game::Tick(int aDtUs, u32 aKeys)
     if (iLoadPhase) return;
     if (iWrKit && !iS.cell && iUi == UI_PLAY) { int a = AreaOutside(iS.px, iS.pz); if (a != iAreaCur && !DeferLoad(2, a)) UseArea(a); }
     if (iLoadPhase) return;
+    if (iBench) { aKeys = 0; iHitIn = 0; }        // (v0.4.82) the benchmark: the player stands still
     iPrevKeys = iKeys;
     iKeys = aKeys;
     // this frame's presses: what went down since the last (a tap between frames too); in the menus a held direction
@@ -2045,6 +2046,7 @@ void Game::Tick(int aDtUs, u32 aKeys)
 
 void Game::KeyChar(int c)
     {
+    if (iBench) { if (c == CH_ESC) BenchStop("stopped by Esc"); return; }    // (v0.4.82)
     if (iUi == UI_TITLE) { if (c == 'e' || c == 'E' || c == ' ' || c == CH_ENTER) iUi = UI_PLAY; return; }
     if (c == 'n' || c == 'N') { iS.outMode = (iS.outMode + 1) & 3; iR->SetOutputMode(iS.outMode); return; }
     if (iUi == UI_DEAD) { if (c == 'e' || c == 'E') Respawn(); return; }
@@ -2318,7 +2320,7 @@ void Game::InvInput()
     if (n == 0 && iInvCol == 1) iInvCol = 0;
     }
 
-enum { MENU_RESUME = 0, MENU_SAVE, MENU_LOAD, MENU_CONTROLS, MENU_DISPLAY, MENU_GAMMA, MENU_VIEW, MENU_FAR, MENU_TEX, MENU_PLANTS, MENU_FULL, MENU_MIDDLE, MENU_ROWS, MENU_LAND, MENU_CLUTTER, MENU_AUTO, MENU_FPS, MENU_TRAVEL, MENU_NEW, MENU_UPDATE, MENU_QUIT, MENU_COUNT };
+enum { MENU_RESUME = 0, MENU_SAVE, MENU_LOAD, MENU_CONTROLS, MENU_DISPLAY, MENU_GAMMA, MENU_VIEW, MENU_FAR, MENU_TEX, MENU_PLANTS, MENU_FULL, MENU_MIDDLE, MENU_ROWS, MENU_LAND, MENU_CLUTTER, MENU_AUTO, MENU_FPS, MENU_TRAVEL, MENU_BENCH, MENU_NEW, MENU_UPDATE, MENU_QUIT, MENU_COUNT };
 
 // the view settings, kept in iS.view: bits 0-2 the detailed land, bits 3-5 the far land (each a step in the lists
 // below, 0 the default: 170 m, 1.5 km), bits 6-8 textures (0 off, the default: textured models flat in their
@@ -2396,6 +2398,7 @@ void Game::MenuInput()
         case MENU_SAVE: iRequest = 1; break;
         case MENU_LOAD: iRequest = 2; break;
         case MENU_TRAVEL: iUi = UI_TELE; break;
+        case MENU_BENCH: BenchStart(); break;                    // (v0.4.82: every place measured, the log sent to the PC)
         case MENU_CONTROLS: iUi = UI_HELP; iListScroll = 0; break;
         case MENU_NEW:
             {
@@ -2459,6 +2462,7 @@ void Game::LoadFinish()
 void Game::ReportTimes(int aRenderUs, int aBlitUs, int aFrameUs)
     {
     iRenderUs = aRenderUs; iBlitUs = aBlitUs;
+    BenchFrame(aRenderUs, aBlitUs, aFrameUs);      // (v0.4.82)
     // (v0.4.75) the frame rate shown: whole frames (the game's own work too, not only the drawing and the copy) over
     // about a second - the phone's clock ticks 64 times a second, so one frame's time is off by up to a tick (+-10 %
     // at 6 fps)

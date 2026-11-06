@@ -33,7 +33,9 @@ in `.gitignore` and must be generated locally before the game builds.
    The people's lines (`src/game_lines.inc`) are game text too: without your own, copy the placeholders -
    `cp src/game_lines_stub.inc src/game_lines.inc`.
 3. The phone app: `build_app.sh` with `build.cfg` (GCC 2.9 `arm-epoc-pe-gcc -O2 -mno-short-load-bytes`, no writable
-   static data), then `makesis sis/hrimfell.pkg`.
+   static data), then `makesis sis/hrimfell.pkg` (the program) and `makesis sis/hrimfell_data.pkg` (the world's data:
+   its own package, installed after the program and again only when the data changes).
+   On the phone, the menu's *Benchmark (send to PC)* measures every place and sends its log to the local server.
 4. Tests: `emu/build_game.sh` + `emu/build_rungame.sh`, `SC=<scenes> VIEW=64 emu/rungame [prof]`,
    `ALIGN=all emu/rungame`; the host tests in `host/`.
 

@@ -1,0 +1,13 @@
+; Hrimfell's world data (v0.4.82: its own package, so that a new program is a small download): the land, the areas,
+; the shared library, the map, the items. Rebuilt when any of these changes (data/ newer than the last one sent).
+&EN
+#{"Hrimfell data"},(0x0E3D9302),1,0,0
+(0x101F8ED2), 0, 0, 0, {"Series80ProductID"}
+"../data/hrimfell.land"-"!:\system\apps\hrimfell\hrimfell.land"
+"../data/common.hlb"-"!:\system\apps\hrimfell\common.hlb"
+"../data/riverwood.har"-"!:\system\apps\hrimfell\riverwood.har"
+"../data/bleakfalls.har"-"!:\system\apps\hrimfell\bleakfalls.har"
+"../data/whiterun.har"-"!:\system\apps\hrimfell\whiterun.har"
+"../data/forelhost.har"-"!:\system\apps\hrimfell\forelhost.har"
+"../data/hrimfell_map.bin"-"!:\system\apps\hrimfell\hrimfell_map.bin"
+"../data/items.hit"-"!:\system\apps\hrimfell\items.hit"

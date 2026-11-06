@@ -535,3 +535,25 @@ palette) into the walker's context once a call instead of once a row: 265.5 -> 2
 perspective call is ~6 short rows: ~100 instructions of row set-up and ~60 a segment against ~120 of pixels a row.
 What is left there is register-bound (the row pointers saved and reloaded round each segment's set-up, which uses
 every register). Since v0.4.75: 274.4 -> 264.9 M (-3.5 %), and v0.4.77's cache misses -13..-27 % in Forelhost.
+Nov 6 13:50 the user's phone figures for v0.4.81 (fresh New Game; their settings: VIEW=2097248 - 170 m, far land
+500 m, textures 50 m, the rest default; hands sheathed). The emulator at the same travel places (rungame SC=1xx: the
+travel list's place xx as Teleport puts it, 2xx: then facing Whiterun's middle) - phone / emulator: Riverwood street
+5.2-5.4 / 5.3 fps (2257 / 2257 t, d ~185 / 182 ms), Stronghold 5.4-5.6 / 5.7, Crypt 7.7-8.5 / 9.3 (d ~113 / 102:
+the phone ~10 % slower - the cache misses, Forelhost's interiors), Market 6.3 / 6.4, Stables inside 5.1-5.3 / 5.9
+(3434 / 2861 t: people there on the phone), Windmill 12.4-13.3 / 12.4, facing Whiterun 4.2 / 4.1 (4473 / 5008 t),
+Hall of the Dead 12.0 / 12.4. The estimate (3 cycles an instruction) holds within a few %. Decided: c (the copy to
+the screen) is ~5 ms (0-13): drawing into the screen would gain 2-6 % at most - NOT done. Cache work pays only in
+Forelhost's interiors. Loading 9-12 s on the phone; the emulator's set-up of a place in another area 200-360 M
+instructions (4-7 s of it is computing - to look at: LOADI=1 rungame prints a scene's set-up).
+Nov 6 14:00 v0.4.82 (user: the manual test took ~1 hour with the 13 min download and 10 min install):
+(1) Menu "Benchmark (send to PC)" (Game::Bench*, game_cells.cpp): every travel place (and the Windmill again facing
+Whiterun), each: Teleport, its loading time, 1.5 s to settle, 3 s measured (frames, fps, triangles avg/min/max, d
+avg/min/max, c avg/max, the slowest frame), where the player stood (cell x z y yaw pitch, hour) - the player still,
+weapon sheathed, Auto speed off then put back; Esc stops. The log (in Game, 16 KB) is saved to
+C:\Data\Hrimfell\bench.txt and POSTed to http://192.168.137.1:8000/results?name=hrimfell_bench (as Maps 9300's
+log: the server's uploads folder). ~3-4 minutes. Emulator: BENCH=1 VIEW=... emu/rungame (the same log, a frame's
+time from its instructions). (2) The package split: sis/hrimfell.pkg the program only (347 KB: skyrim.sis),
+sis/hrimfell_data.pkg (UID 0x0E3D9302, 20 MB: skyrim_data.sis) the data - sent only when data/ changes. First
+install: skyrim.sis, then skyrim_data.sis (the upgrade removes the old package's data).
+Release step from now on: makesis both when data/ changed, else only hrimfell.pkg; send skyrim.sis (and
+skyrim_data.sis when it changed).

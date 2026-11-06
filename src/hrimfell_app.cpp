@@ -311,6 +311,87 @@ private:
     };
 void CUpdWriter::RunL() { iErr = iStatus.Int(); iOwner.Written(iErr); }
 
+// ---------------------------------------------------------------- the benchmark's log to the PC (v0.4.82)
+// The menu's Benchmark ends with its log in the game's memory: saved to C:\Data\Hrimfell\bench.txt and POSTed to the
+// PC's local server as Maps 9300's log is (http://192.168.137.1:8000/results?name=hrimfell_bench: the server keeps it
+// in its uploads folder). The game goes on meanwhile; the outcome is one of its messages.
+_LIT(KBenchDir, "C:\\Data\\Hrimfell\\");
+_LIT(KBenchFile, "C:\\Data\\Hrimfell\\bench.txt");
+class CBenchSender : public CActive
+    {
+public:
+    CBenchSender(Game* aGame) : CActive(EPriorityStandard), iGame(aGame) { CActiveScheduler::Add(this); }
+    ~CBenchSender() { Cancel(); CloseSock(); delete iBody; if (iServOpen) iServ.Close(); }
+    void Send(const TDesC8& aLog)
+        {
+        if (iState != EIdle) { iGame->Msg("Benchmark: still sending the one before"); return; }
+        delete iBody;
+        iBody = HBufC8::New(aLog.Length() + 256);
+        if (!iBody) { iGame->Msg("Benchmark: no memory to send it"); return; }
+        TPtr8 b = iBody->Des();
+        b.Format(_L8("POST /results?name=hrimfell_bench HTTP/1.0\r\nHost: 192.168.137.1:8000\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: %d\r\nConnection: close\r\n\r\n"), aLog.Length());
+        b.Append(aLog);
+        if (!iServOpen) { if (iServ.Connect() != KErrNone) { Fail(KErrNotReady); return; } iServOpen = ETrue; }
+        if (iSock.Open(iServ, KAfInet, KSockStream, KProtocolInetTcp) != KErrNone) { Fail(KErrNotReady); return; }
+        iSockOpen = ETrue;
+        TInetAddr addr;
+        TBuf<32> host; host.Copy(KUpdHost);
+        addr.Input(host);
+        addr.SetPort(KUpdPort);
+        iState = EConnecting;
+        iSock.Connect(addr, iStatus);
+        SetActive();
+        iGame->Msg("Benchmark: sending the log to the PC...");
+        }
+private:
+    enum TState { EIdle, EConnecting, ESending, EReply };
+    void DoCancel() { if (iSockOpen) iSock.CancelAll(); }
+    void RunL()
+        {
+        TInt err = iStatus.Int();
+        if (err != KErrNone && !(iState == EReply && err == KErrEof && iReply.Length())) { Fail(err); return; }
+        switch (iState)
+            {
+            case EConnecting: iState = ESending; iSock.Write(*iBody, iStatus); SetActive(); break;
+            case ESending: iState = EReply; iReply.Zero(); iSock.RecvOneOrMore(iReply, 0, iStatus, iLen); SetActive(); break;
+            case EReply:
+                {
+                CloseSock();
+                if (iReply.Length() >= 12 && iReply.Mid(9, 3) == _L8("200")) iGame->Msg("Benchmark: sent to the PC (uploads)");
+                else
+                    {
+                    char m[64]; TPtr8 t((TUint8*)m, 0, 60);
+                    t.Copy(_L8("Benchmark: the PC answered "));
+                    t.Append(iReply.Left(Min(iReply.Length(), 24)));
+                    t.Append(TChar(0));
+                    TInt k; for (k = 0; m[k]; k++) if (m[k] == '\r' || m[k] == '\n') { m[k] = 0; break; }
+                    iGame->Msg(m);
+                    }
+                break;
+                }
+            default: break;
+            }
+        }
+    TInt RunError(TInt aError) { Fail(aError); return KErrNone; }
+    void Fail(TInt aErr)
+        {
+        CloseSock();
+        char m[64]; TPtr8 t((TUint8*)m, 0, 60);
+        t.Format(_L8("Benchmark: not sent (%d) - is the server on?"), aErr);
+        t.Append(TChar(0));
+        iGame->Msg(m);
+        iGame->Msg("The log is in C:\\Data\\Hrimfell\\bench.txt");
+        }
+    void CloseSock() { if (iSockOpen) { iSock.CancelAll(); iSock.Close(); iSockOpen = EFalse; } iState = EIdle; }
+    Game* iGame;
+    RSocketServ iServ; RSocket iSock;
+    TBool iServOpen, iSockOpen;
+    TState iState;
+    HBufC8* iBody;
+    TBuf8<64> iReply;
+    TSockXfrLength iLen;
+    };
+
 class CGameView : public CCoeControl, public MDirectScreenAccess, public MUpdShow
     {
 public:
@@ -348,6 +429,7 @@ private:
     TInt iRamTick;
     RFile iLand;                // the land file: open while the game runs
     CUpdater* iUpdater;         // (v0.4.58) the menu's update from the local server
+    CBenchSender* iBenchSender; // (v0.4.82) the benchmark's log to the PC
     TBool iUpdating;            // (v0.4.64) its screen up, the game stopped
     TBuf<96> iUpdText[4];
     TBool iLandOpen;
@@ -421,6 +503,7 @@ CGameView::~CGameView()
     delete iBmp;
     if (iLandOpen) iLand.Close();
     delete iUpdater;
+    delete iBenchSender;
     iChunk.Close();
     }
 
@@ -546,6 +629,17 @@ void CGameView::HandleRequests()
         {
         iGame->iRequest = 0;
         iEikonEnv->EikAppUi()->HandleCommandL(EEikCmdExit);
+        }
+    else if (req == 5)
+        {
+        // (v0.4.82) the benchmark's log: into a file, then to the PC
+        iGame->iRequest = 0;
+        TPtrC8 log((const TUint8*)iGame->iBenchLog, iGame->iBenchLen);
+        fs.MkDirAll(KBenchDir);
+        RFile f;
+        if (f.Replace(fs, KBenchFile, EFileWrite) == KErrNone) { f.Write(log); f.Close(); }
+        if (!iBenchSender) iBenchSender = new CBenchSender(iGame);
+        if (iBenchSender) iBenchSender->Send(log);
         }
     else if (req == 4)
         {
