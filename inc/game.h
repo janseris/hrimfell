@@ -158,7 +158,7 @@ struct GameState
     u8 dun[64];
     };
 enum { SAVE_VERSION = 19 };
-#define HRIMFELL_VERSION "0.4.82"
+#define HRIMFELL_VERSION "0.4.83"
 // the world map's width in pixels (its picture, Game::BuildMapImage)
 enum { MAPW = 256 };
 // the places with a marker on the map and compass (Skyrim's map markers): their kinds

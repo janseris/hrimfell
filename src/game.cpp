@@ -2378,7 +2378,7 @@ void Game::MenuInput()
     switch (iMenuSel)
         {
         case MENU_DISPLAY: iS.outMode = (iS.outMode + dir) & 3; iR->SetOutputMode(iS.outMode); return;
-        case MENU_GAMMA: iS.gamma = (iS.gamma + dir) & 3; iR->SetGamma(iS.gamma); return;
+        case MENU_GAMMA: iS.gamma = (iS.gamma + dir) & 3; iR->SetGamma(iS.gamma); iItemShown = -1; return;
         case MENU_VIEW: iS.view = ViewStep(iS.view, 0, 3, 8, dir); ApplyViewSetting(); return;
         case MENU_FAR: iS.view = FarSet(iS.view, (FarIdx(iS.view) + dir + NFAR) % NFAR); ApplyViewSetting(); return;
         case MENU_TEX: iS.view = ViewStep(iS.view, 6, 3, 5, dir); ApplyViewSetting(); return;

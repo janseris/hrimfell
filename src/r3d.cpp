@@ -179,6 +179,14 @@ static inline u16 Rgb(int r, int g, int b)
     r = Clamp(r, 0, 255); g = Clamp(g, 0, 255); b = Clamp(b, 0, 255);
     return (u16)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
     }
+// (v0.4.83) a colour of the world: through the Brightness curve (C: 256 bytes, identity at Normal) - the curve put
+// into the colours where they are made, not run over the finished frame
+static inline u16 RgbC(const u8* C, int r, int g, int b)
+    {
+    r = Clamp(r, 0, 255); g = Clamp(g, 0, 255); b = Clamp(b, 0, 255);
+    r = C[r]; g = C[g]; b = C[b];
+    return (u16)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+    }
 
 static char* PutStr(char* d, const char* s) { while (*s) *d++ = *s++; *d = 0; return d; }
 static char* PutInt(char* d, int v)
@@ -245,7 +253,7 @@ int R3D::MemNeeded()
         + Align(256 * 2) + Align(16 * 8 * 256 * 2) * 3
         + Align(81 * sizeof(TV))
         + 65536 * 4
-        + 65536 * 2                             // gamma table
+        + 256                                   // the Brightness curve
         + ARENA_KB * 1024                       // mesh arena (static + game meshes)
         + 1024;
     }
@@ -297,8 +305,9 @@ void R3D::Init(u8* aMem)
     iSkyTex = 0; iSkyTex1 = 0; iSkyRgb = 0; iSkyN = 0; iTexDist = 50 * METER; iSkyHi = 0; iSkyHiN = 0; iTexQ = 0; iSkyKey = 0; iSkyTex32 = iSkyTex16 = 0; iTexMip = 0;
     iVerts = (TV*)p; p += Align(81 * sizeof(TV));
     iRecip = (int*)p; p += 65536 * 4;
-    iGammaLut = (u16*)p; p += 65536 * 2;
+    iCurve = p; p += 256;
     iNumLights = 0; iAmbient = 0; iGamma = 0;
+    { int k; for (k = 0; k < 256; k++) iCurve[k] = (u8)k; }
     iArena = p;
     iArenaEnd = p + ARENA_KB * 1024;
     iRecip[0] = 0x7FFFFFFF;
@@ -512,44 +521,24 @@ int R3D::PointLight(int cx, int cy, int cz)
     return add;
     }
 
-// gamma: brighten the dark and middle tones of the finished frame through a lookup table
+// gamma (the menu's Brightness): brighten the dark and middle tones. (v0.4.83) A curve of 256 bytes put into the
+// colours where they are made - the shaded palettes, the vertices' and the flat faces' colours, the sky - instead of
+// a pass over each finished frame through a 128 KB table (~10 ms a frame at Brightest: its reads, its cache misses)
 void R3D::SetGamma(int aG)
     {
     iGamma = aG < 0 ? 0 : (aG > 3 ? 3 : aG);
-    if (!iGamma || !iGammaLut) return;
-    // per channel curve: out = in^(1/g), g = 1.25, 1.5, 1.8 (integer approximation by square-root blending)
-    u8 cur[64];
-    int k;
-    for (k = 0; k < 64; k++)
+    if (!iCurve) return;
+    // out = in^(1/g), g = 1.25, 1.5, 1.8 (integer approximation by square-root blending)
+    int k, sq = 0;
+    int w = iGamma == 1 ? 90 : (iGamma == 2 ? 160 : 230);
+    for (k = 0; k < 256; k++)
         {
-        int x = k * 256 / 63;                           // 0..256
-        int sq = 0;
-        while ((sq + 1) * (sq + 1) <= x * 256) sq++;    // sqrt(x/256)*256
-        int w = iGamma == 1 ? 90 : (iGamma == 2 ? 160 : 230);
-        int y = x + (((sq - x) * w) >> 8);
-        cur[k] = (u8)(y > 255 ? 255 : y);
+        if (!iGamma) { iCurve[k] = (u8)k; continue; }
+        while ((sq + 1) * (sq + 1) <= k * 256) sq++;    // sqrt(k/256)*256
+        int y = k + (((sq - k) * w) >> 8);
+        iCurve[k] = (u8)(y > 255 ? 255 : y);
         }
-    int i;
-    for (i = 0; i < 65536; i++)
-        {
-        int r = (i >> 11) & 31, g = (i >> 5) & 63, b = i & 31;
-        int R = cur[r * 63 / 31], G = cur[g], B = cur[b * 63 / 31];
-        iGammaLut[i] = (u16)(((R >> 3) << 11) | ((G >> 2) << 5) | (B >> 3));
-        }
-    }
-
-void R3D::ApplyGamma(u16* aOut, int aStride)
-    {
-    if (!iGamma || !iGammaLut) return;
-    int x0 = OutX0(), w = OutW(), y;
-    const u16* L = iGammaLut;
-    for (y = 0; y < OUT_H; y++)
-        {
-        u16* p = aOut + y * aStride + x0;
-        int n = w;
-        while (n >= 4) { p[0] = L[p[0]]; p[1] = L[p[1]]; p[2] = L[p[2]]; p[3] = L[p[3]]; p += 4; n -= 4; }
-        while (n-- > 0) { *p = L[*p]; p++; }
-        }
+    if (iShadePal) BuildPalettes();
     }
 
 // ---------------------------------------------------------------- world building
@@ -1519,7 +1508,7 @@ void R3D::BuildPalettes()
         {
         int m = i >> 4, d = i & 15;
         int k = 150 + d * 8;                         // 150..270 /256
-        iBasePal[i] = Rgb(KMatRGB[m * 3] * k >> 8, KMatRGB[m * 3 + 1] * k >> 8, KMatRGB[m * 3 + 2] * k >> 8);
+        iBasePal[i] = RgbC(iCurve, KMatRGB[m * 3] * k >> 8, KMatRGB[m * 3 + 1] * k >> 8, KMatRGB[m * 3 + 2] * k >> 8);
         }
     for (l = 0; l < 16; l++)
         for (f = 0; f < 8; f++)
@@ -1534,18 +1523,18 @@ void R3D::BuildPalettes()
                 r = r * iLightR >> 8; g = g * iLightG >> 8; b = b * iLightB >> 8;
                 r = Clamp(r, 0, 255); g = Clamp(g, 0, 255); b = Clamp(b, 0, 255);
                 r += (iFogR - r) * f >> 3; g += (iFogG - g) * f >> 3; b += (iFogB - b) * f >> 3;
-                p[i] = Rgb(r, g, b);
+                p[i] = RgbC(iCurve, r, g, b);
                 }
             }
     BuildSkyShade();
     }
 
 // Skyrim's textures' palette, lit (40..280 /256, as iShadePal) and fogged
-static void ShadeOf(const u8* aRgb, u16* aOut, int aFogR, int aFogG, int aFogB, int aLR, int aLG, int aLB);
+static void ShadeOf(const u8* aRgb, u16* aOut, int aFogR, int aFogG, int aFogB, int aLR, int aLG, int aLB, const u8* aCurve);
 void R3D::BuildSkyShade()
     {
-    if (iLibRgb && iLibShade) ShadeOf(iLibRgb, iLibShade, iFogR, iFogG, iFogB, iLightR, iLightG, iLightB);
-    if (iSkyRgb && iSkyShade) ShadeOf(iSkyRgb, iSkyShade, iFogR, iFogG, iFogB, iLightR, iLightG, iLightB);
+    if (iLibRgb && iLibShade) ShadeOf(iLibRgb, iLibShade, iFogR, iFogG, iFogB, iLightR, iLightG, iLightB, iCurve);
+    if (iSkyRgb && iSkyShade) ShadeOf(iSkyRgb, iSkyShade, iFogR, iFogG, iFogB, iLightR, iLightG, iLightB, iCurve);
     }
 // (v0.4.74) the light's colour: the palettes made again when it changes
 void R3D::SetLightColour(int aR, int aG, int aB)
@@ -1561,7 +1550,7 @@ void R3D::SetLibTextures(const u8* aRgb, const u8* aTex, const u8* aTex1, int aN
     iLibHi2 = aN > 0 ? aHi2 : 0; iLibHi2N = iLibHi2 ? aHi2N : 0;
     BuildSkyShade();
     }
-static void ShadeOf(const u8* iSkyRgb, u16* iSkyShade, int iFogR, int iFogG, int iFogB, int aLR, int aLG, int aLB)
+static void ShadeOf(const u8* iSkyRgb, u16* iSkyShade, int iFogR, int iFogG, int iFogB, int aLR, int aLG, int aLB, const u8* aCurve)
     {
     int i, l, f;
     for (l = 0; l < 16; l++)
@@ -1575,7 +1564,7 @@ static void ShadeOf(const u8* iSkyRgb, u16* iSkyShade, int iFogR, int iFogG, int
                 r = r * aLR >> 8; g = g * aLG >> 8; b = b * aLB >> 8;
                 r = Clamp(r, 0, 255); g = Clamp(g, 0, 255); b = Clamp(b, 0, 255);
                 r += (iFogR - r) * f >> 3; g += (iFogG - g) * f >> 3; b += (iFogB - b) * f >> 3;
-                p[i] = Rgb(r, g, b);
+                p[i] = RgbC(aCurve, r, g, b);
                 }
             }
     }
@@ -1671,6 +1660,15 @@ void R3D::FogColour(int aZ, int aR, int aG, int aB, TV& v)
     v.a[0] = (aR << 8) + (iFogR - aR) * f;
     v.a[1] = (aG << 8) + (iFogG - aG) * f;
     v.a[2] = (aB << 8) + (iFogB - aB) * f;
+    if (iGamma) CurveTV(v);
+    }
+// (v0.4.83) a vertex's colour (8.8) through the Brightness curve
+void R3D::CurveTV(TV& v)
+    {
+    const u8* C = iCurve;
+    v.a[0] = (C[Clamp(v.a[0] >> 8, 0, 255)] << 8) + 128;
+    v.a[1] = (C[Clamp(v.a[1] >> 8, 0, 255)] << 8) + 128;
+    v.a[2] = (C[Clamp(v.a[2] >> 8, 0, 255)] << 8) + 128;
     }
 
 // ---------------------------------------------------------------- rasteriser
@@ -2379,7 +2377,7 @@ void R3D::DrawSky()
         int r = iFogR + ((iZenR - iFogR) * t >> 8);
         int g = iFogG + ((iZenG - iFogG) * t >> 8);
         int b = iFogB + ((iZenB - iFogB) * t >> 8);
-        u32 c = Rgb(r, g, b);
+        u32 c = RgbC(iCurve, r, g, b);
         c |= c << 16;
         u32* row = (u32*)(iCB + y * iCStride);
         int nw = iDouble ? iW : iW / 2;
@@ -2411,7 +2409,7 @@ void R3D::DrawSky()
             int sy = (iCy16 >> 4) - yy * iFy / z;
             if (sx < 0 || sx >= iW || sy < 0 || sy >= iH) continue;
             int b = sc * (120 + (int)((h >> 20) & 127)) >> 8;
-            u16 col = Rgb(b, b, b + 20 > 255 ? 255 : b + 20);
+            u16 col = RgbC(iCurve, b, b, b + 20 > 255 ? 255 : b + 20);
             if (iDouble) { u16* p = iCB + sy * iCStride + sx * 2; p[0] = col; p[1] = col; }
             else iCB[sy * iCStride + sx] = col;
             }
@@ -2498,10 +2496,10 @@ void R3D::DrawSunAndClouds(int yh)
             if (sx > -4 * R && sx < W + 4 * R && sy > -4 * R && sy < H + 4 * R)
                 {
                 int warm = iSunY < 4000 ? 1 : 0;            // low sun: orange
-                u16 glow = warm ? Rgb(255, 170, 90) : Rgb(255, 236, 190);
+                u16 glow = warm ? RgbC(iCurve, 255, 170, 90) : RgbC(iCurve, 255, 236, 190);
                 if (iSunVis > 128) SkyBlob(iCB, iCStride, iZB, iOccOn ? iOccMap : 0, W, H, iDouble, sx, sy, R * 3, R * 3, glow, 2);
                 SkyBlob(iCB, iCStride, iZB, iOccOn ? iOccMap : 0, W, H, iDouble, sx, sy, R * 2, R * 2, glow, 2);
-                SkyBlob(iCB, iCStride, iZB, iOccOn ? iOccMap : 0, W, H, iDouble, sx, sy, R, R, warm ? Rgb(255, 214, 150) : Rgb(255, 252, 236), iSunVis > 160 ? 0 : 1);
+                SkyBlob(iCB, iCStride, iZB, iOccOn ? iOccMap : 0, W, H, iDouble, sx, sy, R, R, warm ? RgbC(iCurve, 255, 214, 150) : RgbC(iCurve, 255, 252, 236), iSunVis > 160 ? 0 : 1);
                 }
             }
         }
@@ -2509,8 +2507,8 @@ void R3D::DrawSunAndClouds(int yh)
     if (iCloud <= 0) return;
     int n = 8 + (iCloud * 8 >> 8), k;
     int drift = (iAnimMs / 600) & 1023;
-    u16 top = Rgb(iCloudR, iCloudG, iCloudB);
-    u16 under = Rgb(iCloudR * 13 / 16, iCloudG * 13 / 16, iCloudB * 13 / 16);
+    u16 top = RgbC(iCurve, iCloudR, iCloudG, iCloudB);
+    u16 under = RgbC(iCurve, iCloudR * 13 / 16, iCloudG * 13 / 16, iCloudB * 13 / 16);
     for (k = 0; k < n; k++)
         {
         u32 h = Hash(k, 11, 4321);
@@ -3579,6 +3577,7 @@ void R3D::DrawFacesX(const Mesh& m, int aFrame, int lx, int ly, int lz, const u8
                 v[k]->a[0] = (r << 8) + (iFogR - r) * fo;
                 v[k]->a[1] = (g << 8) + (iFogG - g) * fo;
                 v[k]->a[2] = (bb << 8) + (iFogB - bb) * fo;
+                if (iGamma) CurveTV(*v[k]);
                 }
             DrawTri(v[0], v[1], v[2], K_GOURAUD);
             }
@@ -3602,7 +3601,7 @@ void R3D::DrawFacesX(const Mesh& m, int aFrame, int lx, int ly, int lz, const u8
         c.F = F0; c.N = N0; c.UV = UV0; c.tv = tv; c.FL = FL; c.nl = nl; c.j = 0;
         c.slots = aSlots; c.si = iSlotInfo; c.lx = lx; c.ly = ly; c.lz = lz; c.flags = aFlags; c.light = iLight; c.amb = iAmbient;
         c.pl = pl; c.mla = iMeshLightAdd; c.ll = iLightList; c.ln = iLightListN; c.us = us; c.texdist = iTexDist; c.notex = iNoTex;
-        c.texmip = iTexMip; c.dbl = iDouble; c.fog0 = iFog0; c.fogK = iFogK; c.fogSq = iFogSq; c.fogR = iFogR; c.fogG = iFogG; c.fogB = iFogB;
+        c.texmip = iTexMip; c.dbl = iDouble; c.fog0 = iFog0; c.fogK = iFogK; c.fogSq = iFogSq; c.fogR = iFogR; c.fogG = iFogG; c.fogB = iFogB; c.curve = iCurve;
         c.libShade = iLibShade; c.skyShade = iSkyShade; c.shadePal = iShadePal; c.libHi2 = iLibHi2; c.skyHi2 = iSkyHi2;
         c.libHi = iLibHi; c.skyHi = iSkyHi; c.libTex1 = iLibTex1; c.libTex = iLibTex; c.skyTex32 = iSkyTex32; c.skyTex16 = iSkyTex16;
         c.skyTex1 = iSkyTex1; c.skyTex = iSkyTex; c.tex = iTex; c.out = iFaceRec; c.outEnd = iFaceRec + 64 * 3;
@@ -3744,7 +3743,7 @@ void R3D::DrawFacesX(const Mesh& m, int aFrame, int lx, int ly, int lz, const u8
                 int fo = FogF(a->z);
                 r += (iFogR - r) * fo >> 8; g += (iFogG - g) * fo >> 8; bb += (iFogB - bb) * fo >> 8;
                 }
-            iFlatCol = ::Rgb(r, g, bb);
+            iFlatCol = RgbC(iCurve, r, g, bb);
             }
         // (v0.4.43: on the screen whole - the tests DrawTri makes already made: straight to the rasteriser)
         if ((a->code | b->code | c->code) & 32) DrawTri(a, b, c, ft ? K_TEX : K_FLAT);

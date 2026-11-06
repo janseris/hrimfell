@@ -1686,7 +1686,6 @@ void Game::Render(u16* aOut, int aStride)
     if (iLoadPhase) { DrawLoading(aOut, aStride); iLoadPhase = 2; return; }
     SetupLights();
     RenderFrame(aOut, aStride);
-    iR->ApplyGamma(aOut, aStride);
     }
 
 void Game::RenderFrame(u16* aOut, int aStride)

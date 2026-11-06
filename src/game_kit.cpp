@@ -857,6 +857,7 @@ const Mesh* Game::ItemModel(int aId)
                 if (rr > 255) rr = 255;
                 if (gg > 255) gg = 255;
                 if (bb > 255) bb = 255;
+                rr = iR->iCurve[rr]; gg = iR->iCurve[gg]; bb = iR->iCurve[bb];       // (v0.4.83) Brightness
                 q[i] = (u16)(((rr & 0xF8) << 8) | ((gg & 0xFC) << 3) | (bb >> 3));
                 }
             }

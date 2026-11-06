@@ -570,3 +570,13 @@ bytes and the ms at the phone's ~63 MB/s; CACHEMAP=1: by function) and takes GAM
   but needs both compare directions in every span loop: NOT done. Then xform_v (TV 40 bytes a vertex: 97 KB in
   Riverwood's street) - a smaller TV would cut both its writes and the read misses after; a big change, later.
 - Info notes: the game shows none of the phone's; StartDirect is tried every frame: right already.
+Nov 7 00:55 v0.4.83 (the user plays at Brightness: Brightest): the Brightness curve put into the colours where they
+are made, not run over each finished frame. R3D::iCurve (256 bytes, identity at Normal; the 128 KB iGammaLut and
+ApplyGamma gone): RgbC (the shaded palettes - iShadePal, iLibShade, iSkyShade, iBasePal -, the sky's rows, stars,
+sun, clouds, the slot-coloured flat faces), CurveTV (the vertices' colours: FogColour - land, far land, water - and
+the gouraud meshes), face_shade's flat colours (FaceCtx.curve, FC_CURVE 196), the inventory preview's palette.
+The flat faces averaged from vertex colours use ::Rgb (curved already - the first try curved them twice: half the
+screen pale). The UI (menus, HUD, map, books) is no longer brightened: its own colours. Emulator, GAMMA=3, the 41
+scenes + 7 travel places: 331.0 -> 316.4 M instructions (-4.4 %; Brightest now costs +0.6 % over Normal) and the
+table's ~11 k read misses a frame gone; the pictures as before (mean difference 4-6 /765 a pixel: the curve now
+before the 5-6-5 rounding - truer), the inventory's background darker (the UI not brightened).

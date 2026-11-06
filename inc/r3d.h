@@ -167,6 +167,7 @@ struct FaceCtx
     const u8* skyTex32; const u8* skyTex16; const u8* skyTex1; const u8* skyTex; const u8* tex;     // 132
     int* out; int* outEnd;                                                                 // 176
     int lr, lg, lb;                                                                        // 184 (v0.4.74: the light's colour)
+    const u8* curve;                                                                       // 196 (v0.4.83: the Brightness curve)
     };
 struct FlatCtx { const int* rc; int H; u16* cb; int cstride; u16* zb; int W; int occ; int col; int tris; HalfState* hs; };
 
@@ -353,7 +354,7 @@ public:
     int iMeshLightAdd;              // a small mesh's light from the lights, the same for all its faces (-1: per face)
     int iAmbient;                   // added to every face's light level (indoors)
     int iGamma;                     // 0 = off, 1..3 brighter
-    u16* iGammaLut;
+    u8* iCurve;                     // (v0.4.83) the Brightness curve: 256 bytes, identity at Normal
     void ClearLights() { iNumLights = 0; }
     void AddLight(int aX, int aY, int aZ, int aRadius, int aStrength);     // world position; before BeginFrame
     void PrepareLights();
@@ -361,7 +362,7 @@ public:
     int  LightsNear(int cx, int cy, int cz, int rad);
     int  iMeshNearLight;
     void SetGamma(int aG);
-    void ApplyGamma(u16* aOut, int aStride);
+    void CurveTV(TV& v);
 
     // per vertex height / HS and ground (VM_* bits), for the vertices in the window: iHeight[z * iHS + x] (the
     // pointers are offset so that the world's own vertex numbers index them; outside the window: Hgt / MatV)

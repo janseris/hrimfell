@@ -2649,6 +2649,7 @@ tex_tri:
 	.equ	FC_OUT, 176
 	.equ	FC_OUTEND, 180
 	.equ	FC_LR, 184
+	.equ	FC_CURVE, 196
 	@ locals (sp): 0 i, 4 sl, 8 blur, 12 hiq, 16 sky, 20 lev, 24 UV, 28 si
 	@ fog of a depth: r0 = z in, r0 = FogF(z) out (r1 scratch)
 	.macro	FOGF
@@ -3125,6 +3126,11 @@ face_shade:
 	movlt	r3, #0
 	cmp	r3, #255
 	movgt	r3, #255
+	@ (v0.4.83) through the Brightness curve
+	ldr	r0, [r11, #FC_CURVE]
+	ldrb	r1, [r0, r1]
+	ldrb	r2, [r0, r2]
+	ldrb	r3, [r0, r3]
 	and	r1, r1, #0xF8
 	and	r2, r2, #0xFC
 	mov	r1, r1, lsl #8
