@@ -158,7 +158,7 @@ struct GameState
     u8 dun[64];
     };
 enum { SAVE_VERSION = 19 };
-#define HRIMFELL_VERSION "0.4.83"
+#define HRIMFELL_VERSION "0.4.84"
 // the world map's width in pixels (its picture, Game::BuildMapImage)
 enum { MAPW = 256 };
 // the places with a marker on the map and compass (Skyrim's map markers): their kinds
@@ -275,7 +275,7 @@ public:
     void Render(u16* aOut, int aStride);
     void RenderFrame(u16* aOut, int aStride);
     // save/load: the platform reads/writes iS (sizeof(GameState)) when iRequest is set
-    int  iRequest;      // 0 none, 1 save, 2 load, 3 quit, 4 update, 5 the benchmark's log to save and send
+    int  iRequest;      // 0 none, 1 save, 2 load, 3 quit, 4 update, 5 the benchmark's log to save and send, 6 the settings to save
     void SaveDone(int aOk);
     void LoadDone(int aOk);
     int  ShowFps;
@@ -539,6 +539,12 @@ public:
     void Go(int aCell, int aX, int aZ, int aYaw, int aFeet = 0x7fffffff);
     int  DeferLoad(int aKind, int a0 = 0, int a1 = 0, int a2 = 0, int a3 = 0, int a4 = 0);
     void DoPendingLoad();
+    // (v0.4.84) the settings (Brightness, the view's, Display, Show FPS) kept in a file of their own by the platform:
+    // read into iCfg before the start-up's last stage, written (iRequest 6) when they change and the menu is shut
+    enum { CFG_MAGIC = 0x47464348 };
+    int iCfg[4];                // magic, gamma, view, outMode | ShowFps << 4
+    void CfgUse();
+    void CfgCheck();
     // (v0.4.82) the benchmark (menu: Benchmark): every travel place in turn - loaded, left to settle, measured - one
     // line each into iBenchLog; when done (or stopped by Esc) iRequest 5: the platform saves the log and sends it to
     // the PC. The player doesn't move meanwhile, the weapon sheathed, Auto speed off (put back after)

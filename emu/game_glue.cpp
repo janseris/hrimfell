@@ -52,6 +52,15 @@ static int g_emuItem;
 extern "C" void emu_scene(u8* mem, int s)
     {
     Game* g = (Game*)mem;
+    if (s >= 300)
+        {
+        // (looking for a place's view) the travel place 22 moved: 300 + k, k = dx 0..4 (-4..4 m by 2) * 25 + dz * 5 + yaw (0..4)*256
+        int k = s - 300, dx = (k / 25) % 5, dz = (k / 5) % 5, yw = k % 5;
+        g->Teleport(22); g->iFadeUs = 0; g->iS.pitch = 0;
+        g->iS.px += (dx * 2 - 4) * 2 * METER; g->iS.pz += (dz * 2 - 4) * 2 * METER; g->iS.yaw = yw * 256 & 1023;
+        g->iS.py = g->iR->GroundAt(g->iS.px, g->iS.pz) + 410;
+        return;
+        }
     if (s >= 100)
         {
         // (v0.4.81) the travel list's place s - 100 (200+: then facing Whiterun's middle), as on the phone

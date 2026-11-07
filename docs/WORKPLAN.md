@@ -580,3 +580,17 @@ screen pale). The UI (menus, HUD, map, books) is no longer brightened: its own c
 scenes + 7 travel places: 331.0 -> 316.4 M instructions (-4.4 %; Brightest now costs +0.6 % over Normal) and the
 table's ~11 k read misses a frame gone; the pictures as before (mean difference 4-6 /765 a pixel: the curve now
 before the 5-6-5 rounding - truer), the inventory's background darker (the UI not brightened).
+Nov 7 16:08 the user's first phone benchmark (v0.4.83, 221 s; uploads/..._hrimfell_bench.txt). Its settings were
+all the defaults (far land 1.5 km, textures off, Brightness Normal): the settings lived only in the game's state -
+not kept across a restart. Emulator BENCH=1 VIEW=0 against it, place by place: the triangles the same at every
+place (to a few); d phone/emulator 0.79-0.92 outside (textures off: flat and gouraud spans - fewer loads an
+instruction than the textured ones the 3-cycle figure was matched on), 0.92-1.03 inside (textured). The cost model
+should price instruction kinds (loads, stores, ldm/stm, multiplies, branches) - fit to these 35 places + the 8 of
+Nov 6. The phone's timer ticks 15.625 ms (1/64 s): a frame's d and c are whole ticks - averages over a place good,
+min/max not. Loading (only where an area's file is read): 9.0-11.0 s - the next target (~45 s of the 221).
+User: Alvor's forge's place faced a post filling half the view - not representative.
+v0.4.84: (1) the settings (Brightness, the view's ones, Display, Show FPS) in their own file
+C:\System\Apps\Hrimfell\hrimfell.cfg: read before the start-up's last stage (Game::iCfg, CfgUse), written when they
+changed and the menu is shut (CfgCheck once a frame -> iRequest 6); kept by New Game (Display too now) and by
+loading a save. (2) Travel "Riverwood - Alvor's forge": 8 m back (z -6 m), facing west (768): the forge, its roof,
+Alvor (found with the emulator: SC=300+k moves place 22 by a grid of offsets and yaws).

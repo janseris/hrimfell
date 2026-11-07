@@ -1335,7 +1335,7 @@ static int Travel(Game& g, int i, TravelSpot& t)
         case 19: t.name = "Bleak Falls Sanctum"; t.cell = CELL_BFSANCTUM; t.x = g.Door(9).ix - 2 * M; t.z = g.Door(9).iz; t.yaw = 768; return 1;
         case 20: t.name = "Riverwood - the inn and the street"; t.cell = 0; t.x = GameRiverwoodX() + 8 * M; t.z = GameRiverwoodZ() + 4 * M; t.yaw = 640; return 1;
         case 21: t.name = "Riverwood - the mill"; t.cell = 0; t.x = GameRiverwoodX() - 26 * M; t.z = GameRiverwoodZ() + 8 * M; t.yaw = 768; return 1;
-        case 22: t.name = "Riverwood - Alvor's forge"; t.cell = 0; t.x = GameRiverwoodX() - 12 * M; t.z = GameRiverwoodZ() + 2 * M; t.yaw = 0; return 1;
+        case 22: t.name = "Riverwood - Alvor's forge"; t.cell = 0; t.x = GameRiverwoodX() - 12 * M; t.z = GameRiverwoodZ() - 6 * M; t.yaw = 768; return 1;    // (v0.4.84: 8 m back, facing the forge and Alvor - was a post filling half the view)
         case 23: t.name = "Riverwood Trader (inside)"; t.cell = CELL_RWTRADER; t.x = Ix(-273); t.z = Iz(-675); t.yaw = 40; return 1;
         case 24: t.name = "Sleeping Giant Inn (inside)"; t.cell = CELL_RWINN; t.x = Ix(-366); t.z = Iz(-460); t.yaw = 0; return 1;
         case 25: t.name = "Sleeping Giant - Delphine's secret room"; t.cell = CELL_RWINN; t.x = Ix(523); t.z = Iz(1430); t.yaw = 512; return 1;

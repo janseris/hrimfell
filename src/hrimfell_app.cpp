@@ -18,6 +18,7 @@
 
 const TUid KUidHrimfell = { 0x0E3D9301 };
 _LIT(KSaveFile, "C:\\System\\Apps\\Hrimfell\\hrimfell.sav");
+_LIT(KCfgFile, "C:\\System\\Apps\\Hrimfell\\hrimfell.cfg");     // (v0.4.84) the settings
 _LIT(KLandFile, "?:\\System\\Apps\\Hrimfell\\hrimfell.land");     // Skyrim's land (installed on any drive)
 
 // the land file's reader for the game (R3D::LoadLand): aCtx is the open RFile
@@ -536,6 +537,17 @@ TInt CGameView::IdleCb(TAny* aThis)
         TInt step = phase / 2;
         TUint8* base = v->iChunk.Base();
         TBool open = EFalse;
+        if (step == 5)
+            {
+            // (v0.4.84) the settings, from their own file (if there is one)
+            RFile f;
+            if (f.Open(v->iCoeEnv->FsSession(), KCfgFile, EFileRead) == KErrNone)
+                {
+                TPtr8 c((TUint8*)v->iGame->iCfg, 0, sizeof(v->iGame->iCfg));
+                if (f.Read(c) != KErrNone || c.Length() != sizeof(v->iGame->iCfg)) v->iGame->iCfg[0] = 0;
+                f.Close();
+                }
+            }
         if (step == 4 && !v->iLandOpen)
             {
             // the land: on the drive it was installed to (C:, then the memory card)
@@ -601,6 +613,19 @@ void CGameView::HandleRequests()
     TInt req = iGame->iRequest;
     if (!req) return;
     RFs& fs = iCoeEnv->FsSession();
+    if (req == 6)
+        {
+        // (v0.4.84) the settings, to their own file
+        iGame->iRequest = 0;
+        fs.MkDirAll(KCfgFile);
+        RFile f;
+        if (f.Replace(fs, KCfgFile, EFileWrite) == KErrNone)
+            {
+            f.Write(TPtrC8((const TUint8*)iGame->iCfg, sizeof(iGame->iCfg)));
+            f.Close();
+            }
+        return;
+        }
     if (req == 1)
         {
         RFile f;

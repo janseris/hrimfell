@@ -432,6 +432,7 @@ void Game::InitStep(u8* aMem, int k)
             ShowFps = 0;
             iDirect = 1;
             NewGame();
+            CfgUse();
             iUi = UI_TITLE;
             break;
         }
@@ -552,7 +553,7 @@ int Game::SpawnEnt(int aType, int aX, int aZ, int aYaw)
 void Game::NewGame()
     {
     UseArea(0);                             // (v0.4.55: the main area's file - its houses' things are put out)
-    int gamma = iS.gamma, view = iS.view;   // display settings: kept across new games
+    int gamma = iS.gamma, view = iS.view, out = iS.outMode;   // display settings: kept across new games
     r3d_memset(&iS, 0, sizeof(iS));
     r3d_memset(iP, 0, sizeof(iP));
     iS.magic = 0x48524D46; iS.version = SAVE_VERSION;
@@ -565,7 +566,7 @@ void Game::NewGame()
     iS.hp = 100 << 8; iS.mp = 100 << 8; iS.sp = 100 << 8;
     iS.gold = 25;
     iS.timeOfDay = 9 * 3600 * 1000 / 60;   // game time in units of 60 ms (1 unit = 1 game "minute/1000")
-    iS.outMode = 0;
+    iS.outMode = out & 3;
     iS.cell = 0; iS.day = 0; iS.weather = W_CLEAR; iS.weatherHours = 0; iS.third = 0; iS.drawn = 0;
     iR->iCell = 0;
     ApplyViewSetting();
@@ -1975,6 +1976,7 @@ void Game::Tick(int aDtUs, u32 aKeys)
     if (iLoadPhase) return;
     if (iWrKit && !iS.cell && iUi == UI_PLAY) { int a = AreaOutside(iS.px, iS.pz); if (a != iAreaCur && !DeferLoad(2, a)) UseArea(a); }
     if (iLoadPhase) return;
+    CfgCheck();                                   // (v0.4.84)
     if (iBench) { aKeys = 0; iHitIn = 0; }        // (v0.4.82) the benchmark: the player stands still
     iPrevKeys = iKeys;
     iKeys = aKeys;
@@ -2419,6 +2421,23 @@ void Game::SaveDone(int aOk)
     iUi = UI_PLAY;
     }
 
+// (v0.4.84) the settings file's contents (if any) put to use
+void Game::CfgUse()
+    {
+    if (iCfg[0] != CFG_MAGIC) return;
+    iS.gamma = iCfg[1] & 3; iS.view = iCfg[2]; iS.outMode = iCfg[3] & 3; ShowFps = (iCfg[3] >> 4) & 1;
+    iR->SetGamma(iS.gamma); iR->SetOutputMode(iS.outMode); ApplyViewSetting();
+    }
+// once a frame: settings changed (and the menu shut, no benchmark running) - to the file
+void Game::CfgCheck()
+    {
+    if (iBench || iUi == UI_MENU || iRequest) return;
+    int c3 = (iS.outMode & 3) | ((ShowFps & 1) << 4);
+    if (iCfg[0] == CFG_MAGIC && iCfg[1] == iS.gamma && iCfg[2] == iS.view && iCfg[3] == c3) return;
+    iCfg[0] = CFG_MAGIC; iCfg[1] = iS.gamma; iCfg[2] = iS.view; iCfg[3] = c3;
+    iRequest = 6;
+    }
+
 void Game::LoadDone(int aOk)
     {
     iRequest = 0;
@@ -2432,7 +2451,9 @@ void Game::LoadDone(int aOk)
     const int* a = (const int*)&iLoad;
     int* b = (int*)&iS;
     int n = sizeof(GameState) / 4, k;
+    int gamma = iS.gamma, view = iS.view, out = iS.outMode;     // (v0.4.84) the settings stay as they are now
     for (k = 0; k < n; k++) b[k] = a[k];
+    iS.gamma = gamma; iS.view = view; iS.outMode = out;
     }
     if (!DeferLoad(3)) LoadFinish();            // (v0.4.74: the loading screen first)
     }

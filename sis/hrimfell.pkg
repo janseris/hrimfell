@@ -3,7 +3,7 @@
 ; installed once and again only when the data changes. First time from a package with the data in it: this one
 ; first (its upgrade removes the old package's files, the data with them), then skyrim_data.sis.
 &EN
-#{"Hrimfell"},(0x0E3D9301),0,4,83
+#{"Hrimfell"},(0x0E3D9301),0,4,84
 (0x101F8ED2), 0, 0, 0, {"Series80ProductID"}
 "../build/hrimfell.app"-"C:\system\apps\hrimfell\hrimfell.app"
 "../build/hrimfell.rsc"-"C:\system\apps\hrimfell\hrimfell.rsc"
